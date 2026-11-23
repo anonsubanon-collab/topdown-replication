@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TopDown: strengthening LLM code judges</title>
+<meta name="description" content="Project page for the TopDown paper: abstract, related work, method, a worked example from the runs, the baselines, and both result figures.">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #fcfcfb; --surface: #ffffff; --surface-2: #f3f2ee; --line: #e3e1da;
+  --text: #0b0b0b; --text-2: #52514e; --text-3: #7a7872;
+  --accent: #2a78d6; --accent-soft: #cde2fb;
+  --spec: #6250d6; --spec-soft: #e7e3fb; --code: #eb6834; --code-soft: #fde7dc; --judge: #1baf7a; --judge-soft: #d9f3e8;
+  --grey-dot: #8a8781; --grey-light: #c3c2b7; --red: #e34948;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #1a1a19; --surface: #232321; --surface-2: #2c2c29; --line: #383733;
+    --text: #f0efec; --text-2: #c3c2b7; --text-3: #8f8d85;
+    --accent: #3987e5; --accent-soft: #1c3a5e;
+    --spec: #9085e9; --spec-soft: #2e2a4d; --code: #d95926; --code-soft: #4a2a1c; --judge: #199e70; --judge-soft: #16392c;
+    --grey-dot: #9a978f; --grey-light: #5e5c56; --red: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1a1a19; --surface: #232321; --surface-2: #2c2c29; --line: #383733;
+  --text: #f0efec; --text-2: #c3c2b7; --text-3: #8f8d85;
+  --accent: #3987e5; --accent-soft: #1c3a5e;
+  --spec: #9085e9; --spec-soft: #2e2a4d; --code: #d95926; --code-soft: #4a2a1c; --judge: #199e70; --judge-soft: #16392c;
+  --grey-dot: #9a978f; --grey-light: #5e5c56; --red: #e66767;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.7 -apple-system, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif; }
+a { color: var(--accent); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+.narrow { max-width: 700px; }
+header.hero { padding: 96px 0 56px; }
+header.hero h1 { font-size: 2.5rem; line-height: 1.15; margin: 0 0 22px; letter-spacing: -0.015em; max-width: 820px; }
+header.hero .sub { color: var(--text-2); font-size: 1.2rem; line-height: 1.6; max-width: 700px; }
+header.hero .meta { color: var(--text-3); font-size: 0.9rem; margin-top: 26px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 40px 0 0; max-width: 820px; }
+.stat { border-top: 2px solid var(--accent); padding-top: 12px; }
+.stat b { display: block; font-size: 1.6rem; line-height: 1.2; letter-spacing: -0.01em; }
+.stat span { color: var(--text-2); font-size: 0.92rem; }
+@media (max-width: 640px) { .stats { grid-template-columns: 1fr; } }
+nav.toc { position: sticky; top: 0; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); z-index: 5; }
+nav.toc ul { list-style: none; margin: 0; padding: 12px 0; display: flex; flex-wrap: wrap; gap: 4px 22px; font-size: 0.88rem; }
+nav.toc a { color: var(--text-2); text-decoration: none; }
+nav.toc a:hover { color: var(--accent); }
+section { padding: 88px 0 0; }
+section h2 { font-size: 1.85rem; margin: 0 0 22px; letter-spacing: -0.015em; line-height: 1.2; }
+section h2 small { display: block; color: var(--text-3); font-weight: 400; font-size: 1rem; margin-top: 6px; letter-spacing: 0; }
+section h3 { font-size: 1.15rem; margin: 44px 0 10px; }
+p { max-width: 700px; margin: 12px 0; }
+ul, ol { max-width: 700px; padding-left: 22px; }
+li { margin: 8px 0; }
+.lede { font-size: 1.15rem; line-height: 1.6; color: var(--text); }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+@media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; }
+.card h4 { margin: 0 0 8px; font-size: 1rem; }
+.card p { margin: 6px 0; font-size: 0.95rem; line-height: 1.6; color: var(--text-2); }
+.callout { background: var(--surface-2); border-radius: 12px; padding: 20px 24px; max-width: 700px; margin: 24px 0; }
+.callout p { margin: 8px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; margin: 14px 0 20px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.5; }
+th { color: var(--text-3); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.hl td { background: var(--accent-soft); }
+.tag { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; vertical-align: middle; white-space: nowrap; }
+.tag.spec { background: var(--spec-soft); color: var(--spec); }
+.tag.code { background: var(--code-soft); color: var(--code); }
+.tag.judge { background: var(--judge-soft); color: var(--judge); }
+code, pre { font-family: var(--mono); font-size: 0.87em; }
+code { background: var(--surface-2); padding: 1px 6px; border-radius: 5px; }
+pre { background: var(--surface-2); border-radius: 10px; padding: 16px 18px; overflow-x: auto; margin: 10px 0; line-height: 1.5; }
+pre code { background: none; padding: 0; }
+pre .bug { background: var(--code-soft); border-radius: 3px; }
+pre .fix { background: var(--judge-soft); border-radius: 3px; }
+.fig { margin: 24px 0 8px; }
+.fig svg { width: 100%; height: auto; display: block; }
+.figcap { color: var(--text-3); font-size: 0.86rem; line-height: 1.55; max-width: 900px; margin: 10px 0 10px; }
+.figgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 860px) { .figgrid { grid-template-columns: 1fr; } }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 0.85rem; color: var(--text-2); margin: 24px 0 4px; align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; }
+.steps { counter-reset: s; max-width: 760px; margin-top: 30px; }
+.step { display: grid; grid-template-columns: 40px 1fr; gap: 14px; margin: 26px 0; }
+.step::before { counter-increment: s; content: counter(s); width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; margin-top: 2px; }
+.step h4 { margin: 4px 0 6px; font-size: 1.02rem; }
+.step p { margin: 6px 0; font-size: 0.97rem; color: var(--text-2); }
+.step table { font-size: 0.88rem; max-width: 560px; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 14px 22px; font-size: 0.97rem; max-width: 760px; margin-top: 10px; }
+.kv b { color: var(--text-3); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 4px; }
+.kv span { color: var(--text-2); }
+@media (max-width: 640px) { .kv { grid-template-columns: 1fr; gap: 2px 0; } .kv span { margin-bottom: 14px; } }
+.math { font-family: var(--mono); font-size: 0.9rem; background: var(--surface-2); border-radius: 8px; padding: 10px 14px; display: inline-block; margin: 6px 0; line-height: 1.7; }
+.tip { position: fixed; pointer-events: none; background: var(--text); color: var(--bg); padding: 6px 9px; border-radius: 6px; font-size: 0.8rem; line-height: 1.35; opacity: 0; transition: opacity .08s; z-index: 20; max-width: 280px; }
+footer { padding: 40px 0 70px; color: var(--text-3); font-size: 0.85rem; border-top: 1px solid var(--line); margin-top: 96px; }
+.small { font-size: 0.88rem; color: var(--text-3); }
+.refs { font-size: 0.86rem; color: var(--text-2); columns: 2; column-gap: 28px; max-width: 1000px; }
+.refs li { break-inside: avoid; margin: 0 0 6px; }
+@media (max-width: 760px) { .refs { columns: 1; } }
+details { max-width: 900px; margin: 10px 0; }
+summary { cursor: pointer; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>TopDown: a feedback-driven multi-agent method for strengthening LLM code judges</h1>
+    <div class="sub">An LLM judge reads a program and says whether it is correct. TopDown adds one thing the judge cannot produce on its own: does the program return, on concrete inputs, what the specification says it should? No tests, no reference solution, no execution, no training.</div>
+    <div class="stats">
+      <div class="stat"><b>+12 to 19%</b><span>Kendall's &tau; over the judge alone on HumanEvalPack; +10 to 23% on MBPP+, significantly in 11 of 12 comparisons</span></div>
+      <div class="stat"><b>1/5 to 1/3 of the tokens</b><span>MCTS-Judge generates 3.3 to 4.7 times TopDown's tokens; TopDown has the higher pairwise accuracy in all four settings</span></div>
+      <div class="stat"><b>2 judges, 2 benchmarks</b><span>Qwen2.5-Coder-7B and Llama-3.1-8B on 1,968 HumanEvalPack and 418 MBPP+ programs</span></div>
+    </div>
+    <div class="meta">Anonymous submission, ICPC 2027 Early Research Achievements track. Everything on this page is in the paper; every number comes from the runs in this repository.</div>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap"><ul>
+  <li><a href="#abstract">Abstract</a></li>
+  <li><a href="#motivation">Why</a></li>
+  <li><a href="#related">Prior work</a></li>
+  <li><a href="#method">Method</a></li>
+  <li><a href="#example">Example</a></li>
+  <li><a href="#baselines">Baselines</a></li>
+  <li><a href="#design">Setup</a></li>
+  <li><a href="#rq1">RQ1</a></li>
+  <li><a href="#rq2">RQ2</a></li>
+  <li><a href="#discussion">Discussion</a></li>
+  <li><a href="#reproduce">Reproduce</a></li>
+</ul></div></nav>
+
+<main class="wrap">
+
+<section id="abstract">
+  <h2>Abstract</h2>
+  <p>Reference-free LLM judges read a generated program and decide whether it meets its intent. They need no tests, reference solution or execution, so they can judge code in any language (we test six languages). Such judges, however, can miss small mistakes. Inspired by top-down perception, our idea is to add evidence that the judge cannot produce from the code alone. TopDown is a training-free method that strengthens existing judges rather than replacing or competing with them. Specification-only agents propose inputs and predict the expected output on each. Code-only agents trace the program on the same inputs. A feedback round re-examines each disagreement, and the surviving disagreements are weighted and added to the judge's own verdict as evidence.</p>
+  <p>Early results on 1,968 HumanEvalPack programs in six languages and 418 MBPP+ programs with two open judge families. The baselines are the judge alone, self-consistency, multi-agent judging at matched token budgets and MCTS-Judge (the closest execution-free judge to ours). (1) TopDown raises the judge's Kendall's &tau; by 12&ndash;19% on HumanEvalPack and 10&ndash;23% on MBPP+, significantly in 11 of 12 comparisons. (2) Multi-agent judging and self-consistency mostly fall short of the judge alone. (3) Against MCTS-Judge, TopDown has higher pairwise accuracy in distinguishing correct from buggy programs for both judges on both benchmarks, and a higher MCC for Qwen-7B (a tie for Llama-8B), using one fifth to one third of its generated tokens.</p>
+</section>
+
+<section id="motivation">
+  <h2>Why another look at LLM code judges</h2>
+  <p class="lede">A judge that reads a program alone has one source of information: its own reading of the code. It can miss small mistakes, and it tends to return a verdict even when it has no grounds for one.</p>
+  <p>The usual remedies make the model reason more. Self-consistency averages sampled verdicts. Multi-agent judging has several agents trace and debate the program. MCTS-Judge searches over judging steps. In our experiments, once the token budget is matched, neither self-consistency nor multi-agent judging improves on the single judge.</p>
+  <div class="callout">
+    <p><b>The idea comes from how people review code.</b> Pick a concrete input. Work out from the specification what the output must be. Only then follow the code on that input. Because the expectation is fixed before the code is read, the code cannot change it.</p>
+    <p>Perceptual decision making works the same way: a top-down expectation meets bottom-up evidence, and the decision accumulates the mismatch. TopDown gives an LLM judge this structure.</p>
+  </div>
+  <div class="cols">
+    <div class="card"><h4>RQ1. Does TopDown strengthen the judge at matched compute?</h4><p>Yes. Kendall's &tau; rises by 12 to 19% on HumanEvalPack and 10 to 23% on MBPP+, significantly in 11 of 12 comparisons. Multi-agent judging and self-consistency are mostly worse than the judge alone.</p></div>
+    <div class="card"><h4>RQ2. How does TopDown compare with MCTS-Judge?</h4><p>It has higher pairwise accuracy in distinguishing correct from buggy programs for both judges on both benchmarks (+0.09 to +0.27) while MCTS-Judge generates 3.3 to 4.7 times more tokens, and it decides better on Qwen-7B, with no significant difference on Llama-8B.</p></div>
+  </div>
+</section>
+
+<section id="related">
+  <h2>Prior work, and what is different here</h2>
+  <div class="cols">
+    <div class="card"><h4>Similarity to a reference</h4><p>BLEU, CodeBLEU, CodeBERTScore, CodeScore and the like score code by its similarity to a reference solution. Similarity is not correctness, and these metrics correlate only weakly with human judgment.</p></div>
+    <div class="card"><h4>Reference-free judges</h4><p>ICE-Score and CodeJudge prompt a model to grade a program; MCTS-Judge adds search over judging steps. A single reading of the code is a weak detector of small mistakes.</p></div>
+    <div class="card"><h4>Generated tests</h4><p>CodeT and AgentCoder select code by model-written tests, but run the candidate. TRAILS reads input-output pairs that still come from execution. HoarePrompt reasons about spec and code with one model reading both.</p></div>
+    <div class="card"><h4>Tracing and self-correction</h4><p>Models can trace code without running it, but about half of their coherent traces still end in a wrong output. Self-correction without an external signal fails, yet a model told where a step went wrong can often repair it.</p></div>
+  </div>
+  <h3>Closest work: MCTS-Judge</h3>
+  <p>Like TopDown, it predicts expected outputs from the problem statement alone, has the judge simulate the code line by line with the output hidden, and never executes the program. We differ in four places. To our knowledge, no prior work combines these without executing the candidate.</p>
+  <table>
+    <tr><th></th><th>MCTS-Judge</th><th>TopDown</th></tr>
+    <tr><td><b>Expectation</b></td><td>One output per test, from a separate model (GPT-4o).</td><td>The judge model sampled four times; the agreement is kept as a precision <i>p</i>.</td></tr>
+    <tr><td><b>Disagreement</b></td><td>Nothing happens after a mismatch.</td><td>The input goes back to both sides, each told only that a check disagreed.</td></tr>
+    <tr><td><b>Aggregation</b></td><td>A program is correct only if every simulated test passes, so each mismatch counts as proof of a bug.</td><td>Each remaining mismatch becomes a log-likelihood ratio from <i>p</i> and <i>r</i>.</td></tr>
+    <tr><td><b>The judge</b></td><td>Its tests reward the search over judging steps, and the verdict is a vote with no probabilities.</td><td>The evidence is added to the judge's own log-odds, which stay untouched.</td></tr>
+  </table>
+</section>
+
+<section id="method">
+  <h2>How TopDown works</h2>
+  <p class="lede">Six agents, all the same LLM in different roles, in two levels that never see each other's inputs. The specification level says what a correct program should return. The code level says what this program does return. Mismatches get a second look, and the ones that survive are weighed and added to the judge's verdict.</p>
+
+  <div class="fig" id="methodfig"></div>
+  <p class="figcap">Figure 1. One candidate program through TopDown. Top row: sees only the specification. Bottom row: sees only the code. Each probe input gives one check, an expectation with precision <i>p</i> against an observation with reliability <i>r</i>. Dashed arrows are the feedback round, triggered only by a prediction error.</p>
+
+  <h3>The agents</h3>
+  <table>
+    <tr><th></th><th>Agent</th><th>Sees</th><th>Does</th></tr>
+    <tr><td><span class="tag spec">spec</span></td><td><b>Probe</b>, once per task</td><td>specification</td><td>Proposes up to six inputs: the documented examples, then edge cases. Shared by every candidate of the task.</td></tr>
+    <tr><td><span class="tag spec">spec</span></td><td><b>Predictor</b>, 4 samples</td><td>specification</td><td>States what a correct program returns on each input. The majority answer is the <b>expectation</b>; the share of samples agreeing with it is its <b>precision <i>p</i></b>.</td></tr>
+    <tr><td><span class="tag spec">spec</span></td><td><b>Re-deriver</b>, 3 samples, on a contradicted check</td><td>specification</td><td>Told only that a check disagreed, re-derives the result step by step. Pooled with the predictor's four; expectation and <i>p</i> recomputed over seven.</td></tr>
+    <tr><td><span class="tag code">code</span></td><td><b>Code tracer</b>, per check</td><td>code, comments removed</td><td>Traces the program on the input without running it. Its value is the <b>observation</b>.</td></tr>
+    <tr><td><span class="tag code">code</span></td><td><b>Spec-aware tracer</b>, per check</td><td>specification and code</td><td>Traces the same input. The reading is <b>reliable, <i>r</i> = 0.9</b>, when both tracers agree, and <b><i>r</i> = 0.6</b> otherwise. Also the fallback when the code tracer's output cannot be parsed.</td></tr>
+    <tr><td><span class="tag code">code</span></td><td><b>Re-tracer</b>, once, on a contradicted check</td><td>code</td><td>Traces that single input again, tracking every variable and loop step. The majority of the three readings is the observation; <i>r</i> = 0.9 if at least two agree.</td></tr>
+    <tr><td><span class="tag judge">judge</span></td><td><b>Judge</b>, once</td><td>specification and code</td><td>Asked directly whether the code is correct. Its <b>prior</b> is log P(YES) &minus; log P(NO) of the first answer token. Left untouched.</td></tr>
+  </table>
+
+  <h3>From checks to a verdict</h3>
+  <p>A <b>prediction error</b> is an observation that differs from its expectation. It triggers the feedback round, up to the re-deriver and down to the re-tracer, and the comparison is repeated. An error that still stands is a <b>confirmed error</b>.</p>
+  <p>Each check has two probabilities of showing an error. On a correct program an error can only come from a wrong expectation or a wrong reading. On a buggy program the input exposes the bug half the time; otherwise the program behaves as a correct one would.</p>
+  <div class="math">P(error | correct) = 1 &minus; p·r<br>P(error | buggy) &nbsp;&nbsp;= 0.5·(1 &minus; p·(1 &minus; r)) + 0.5·(1 &minus; p·r)</div>
+  <ul>
+    <li><b>Confirmed errors remain:</b> evidence = the sum over them of log P(error | correct) / P(error | buggy). Negative. Agreeing checks add nothing, so a counterexample is not cancelled by inputs that match.</li>
+    <li><b>No error remains:</b> evidence = the mean over all checks of log (1 &minus; P(error | correct)) / (1 &minus; P(error | buggy)). Positive, at most +0.59 per check.</li>
+  </ul>
+  <p><b>Score = prior + evidence.</b> Accept if positive. With no evidence, TopDown is the judge alone.</p>
+  <table style="max-width:520px">
+    <tr><th class="num">p</th><th class="num">r</th><th class="num">one confirmed error</th><th class="num">one agreeing check</th></tr>
+    <tr><td class="num">1.00</td><td class="num">0.9</td><td class="num">&minus;1.61</td><td class="num">+0.59</td></tr>
+    <tr><td class="num">0.75</td><td class="num">0.9</td><td class="num">&minus;0.70</td><td class="num">+0.43</td></tr>
+    <tr><td class="num">1.00</td><td class="num">0.6</td><td class="num">&minus;0.42</td><td class="num">+0.22</td></tr>
+    <tr><td class="num">0.50</td><td class="num">0.6</td><td class="num">&minus;0.07</td><td class="num">+0.18</td></tr>
+  </table>
+  <p class="small">A confident expectation with agreeing tracers counts most; a split expectation with a disputed reading barely counts. All counts (6 probes; 4, 3 and 1 samples) and weights (0.9, 0.6, 0.5) were fixed before the runs and never swept.</p>
+</section>
+
+<section id="example">
+  <h2>One program, end to end <small>Qwen2.5-Coder-7B-Instruct on HumanEvalPack Python/65, read from the runs in this repository</small></h2>
+  <p class="lede">Same specification, two programs: the canonical solution and its twin with one injected bug. The judge alone accepts both. TopDown keeps the first and rejects the second.</p>
+
+  <div class="cols">
+    <div>
+      <h4>Specification</h4>
+<pre><code>def circular_shift(x, shift):
+    """Circular shift the digits of the integer x,
+    shift the digits right by shift and return the
+    result as a string.
+    If shift &gt; number of digits, return digits reversed.
+    &gt;&gt;&gt; circular_shift(12, 1)
+    "21"
+    &gt;&gt;&gt; circular_shift(12, 2)
+    "12"
+    """</code></pre>
+    </div>
+    <div>
+      <h4>Candidates, as the code tracer sees them</h4>
+<pre><code>def circular_shift(x, shift):          # correct twin
+    s = str(x)
+    if shift &gt; len(s):
+        return s[::-1]
+    else:
+        return <span class="fix">s[len(s) - shift:] + s[:len(s) - shift]</span>
+
+def circular_shift(x, shift):          # buggy twin
+    s = str(x)
+    if shift &gt; len(s):
+        return s[::-1]
+    else:
+        return <span class="bug">s[:len(s) - shift] + s[len(s) - shift:]</span></code></pre>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step"><div>
+      <h4>The judge gives its prior <span class="tag judge">judge</span></h4>
+      <p>"Is the code correct? YES or NO." Log-odds of the first token: <b>+4.00</b> for the correct twin, <b>+0.63</b> for the buggy twin. Both accepted.</p>
+    </div></div>
+    <div class="step"><div>
+      <h4>The probe agent proposes inputs <span class="tag spec">spec only</span></h4>
+      <p>The two docstring examples first, then edge cases: <code>circular_shift(12, 1)</code>, <code>(12, 2)</code>, <code>(12345, 3)</code>, <code>(12345, 5)</code>, <code>(12345, 6)</code>, <code>(0, 1)</code>.</p>
+    </div></div>
+    <div class="step"><div>
+      <h4>The predictor states the expectations <span class="tag spec">spec only</span></h4>
+      <p>All four samples agree on every input, so <i>p</i> = 1.0 throughout.</p>
+      <table><tr><th>input</th><th>expectation</th><th class="num">p</th></tr>
+      <tr><td><code>circular_shift(12, 1)</code></td><td><code>"21"</code></td><td class="num">4/4</td></tr>
+      <tr><td><code>circular_shift(12, 2)</code></td><td><code>"12"</code></td><td class="num">4/4</td></tr>
+      <tr><td><code>circular_shift(12345, 3)</code></td><td><code>"34512"</code></td><td class="num">4/4</td></tr>
+      <tr><td><code>circular_shift(12345, 5)</code></td><td><code>"12345"</code></td><td class="num">4/4</td></tr>
+      <tr><td><code>circular_shift(12345, 6)</code></td><td><code>"54321"</code></td><td class="num">4/4</td></tr>
+      <tr><td><code>circular_shift(0, 1)</code></td><td><code>"0"</code></td><td class="num">4/4</td></tr></table>
+    </div></div>
+    <div class="step"><div>
+      <h4>The tracers read each program <span class="tag code">code level</span></h4>
+      <p><b>Correct twin:</b> both tracers return the expected value on all six inputs. Six agreeing checks, <i>r</i> = 0.9.</p>
+      <p><b>Buggy twin:</b> both tracers return <code>"12"</code> for <code>(12, 1)</code> and <code>"12345"</code> for <code>(12345, 3)</code>. The bug joins the two slices in the original order, so the digits never move. The other four inputs happen to give the expected value anyway (full rotations, the reversal branch, a single digit). Two prediction errors, <i>r</i> = 0.9.</p>
+    </div></div>
+    <div class="step"><div>
+      <h4>The feedback round</h4>
+      <p><b>Up:</b> the re-deriver is told a check disagreed with <code>"21"</code> for <code>(12, 1)</code>, not what the code gave. Its three derivations all say <code>"21"</code>; 7 of 7 agree, <i>p</i> stays 1.0. Same for <code>(12345, 3)</code>.</p>
+      <p><b>Down:</b> the re-tracer, seeing only the code, again returns <code>"12"</code> and <code>"12345"</code>. Three readings agree, <i>r</i> = 0.9. Both errors confirmed.</p>
+    </div></div>
+    <div class="step"><div>
+      <h4>Evidence and verdict</h4>
+      <div class="cols">
+        <div class="card"><h4>Correct twin</h4>
+          <p>No error remains. Each check gives log(0.90 / 0.50) = +0.59; the mean is +0.59.</p>
+          <p class="math">score = 4.00 + 0.59 = <b>+4.59</b> &rarr; CORRECT</p>
+        </div>
+        <div class="card"><h4>Buggy twin</h4>
+          <p>Two confirmed errors, each log(0.10 / 0.50) = &minus;1.61. The four agreeing checks add nothing.</p>
+          <p class="math">score = 0.63 &minus; 3.22 = <b>&minus;2.59</b> &rarr; BUGGY</p>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <h3>When the expectation itself is revised</h3>
+  <p class="small">Python/80, <code>is_happy</code>, buggy twin, same judge. All four predictor samples said <code>False</code> for <code>is_happy("aabb")</code>, both tracers read <code>True</code>. In the feedback round one of the three re-derivations disagreed, so <i>p</i> dropped to 6/7; the re-trace again said <code>True</code>. The error is confirmed but weighs &minus;0.92 instead of &minus;1.61. With a second confirmed error (&minus;1.61) the evidence is &minus;2.53 against a prior of +1.00: rejected.</p>
+</section>
+
+<section id="baselines">
+  <h2>The baselines, as we ran them</h2>
+  <p class="lede">Same model, same specification and code prompts, same one-token verdict as TopDown's judge. Vanilla, self-consistency and multi-agent judging were given at least as many generated tokens per program as TopDown. MCTS-Judge keeps its own settings.</p>
+  <div class="cols">
+    <div class="card"><h4>Vanilla judge</h4>
+      <p>One call with specification and code. Score: log P(YES) &minus; log P(NO) from the top-20 log-probabilities of the first token. One generated token. This is also TopDown's prior.</p>
+    </div>
+    <div class="card"><h4>Self-consistency, ×50 or ×30</h4>
+      <p>N step-by-step reviews sampled at temperature 0.7 (up to 1,024 tokens each), each followed by the one-token verdict; the N log-odds are averaged. N = 50 everywhere except Llama on HumanEvalPack (30).</p>
+    </div>
+    <div class="card"><h4>Multi-agent judging, ×4 or ×5</h4>
+      <p>Six agents that all see specification and code: a tracer that picks up to six inputs and traces the program on each (4,096 tokens), an inspector that checks boundary rules (768), three bug-hunting reviewers (768 each, temperature 0.7), and an arbiter that reads all notes and gives the one-token verdict. Run 4 times on HumanEvalPack and 5 on MBPP+, the first greedy and the rest sampled; arbiter log-odds averaged.</p>
+    </div>
+    <div class="card"><h4>MCTS-Judge</h4>
+      <p>No code is released, so we rebuilt it from its paper with the same judge model: tests are written from the specification, the program is simulated on each, and a Monte Carlo tree search over judging subtasks ends in a binary verdict. It keeps the paper's search settings (depth 9, 8 rollouts, 3 simulated tests, 7 simulations each); the judged model writes the tests instead of GPT-4o. Not budget-matched: it generates 3.3 to 4.7 times TopDown's tokens.</p>
+    </div>
+    <div class="card"><h4>Matching the budget</h4>
+      <p>Repeat counts were raised per benchmark until each of these baselines generated at least as many tokens per program as TopDown. The table shows the result; TopDown's count includes the feedback round.</p>
+    </div>
+  </div>
+  <table id="tokens"></table>
+</section>
+
+<section id="design">
+  <h2>Setup</h2>
+  <div class="kv">
+    <b>Benchmarks</b><span><b>HumanEvalPack</b>: each canonical solution paired with a one-line injected bug, in six languages: 984 correct, 984 buggy. <b>MBPP+</b>: 418 Python programs generated by Qwen2.5-1.5B-Instruct for 209 tasks: 209 correct, 209 buggy. Labels come from test execution and are joined only after all verdicts are frozen.</span>
+    <b>Judges</b><span>Qwen2.5-Coder-7B-Instruct and Llama-3.1-8B-Instruct, vLLM, bf16, seed 0.</span>
+    <b>Metrics</b><span><b>Kendall's &tau;</b> for ranking, following CodeJudge. <b>MCC</b> for the accept/reject decision at score &gt; 0, robust to class imbalance. Zero means chance for both. <b>Pairwise accuracy</b> (RQ2): the fraction of correct&ndash;buggy pairs of one problem (984 in HumanEvalPack, 209 in MBPP+) in which the judge scores the correct program higher, ties counting half; a binary verdict therefore scores at most its balanced accuracy.</span>
+    <b>Uncertainty</b><span>95% intervals from a bootstrap over problems, 2,000 resamples, a problem's six language variants as one unit. p-values Holm-adjusted over the 12 comparisons of each model in RQ1 and the 4 of each model in RQ2.</span>
+  </div>
+</section>
+
+<section id="rq1">
+  <h2>RQ1 <small>Does top-down evidence improve the judge at matched compute?</small></h2>
+  <ul>
+    <li><b>Ranking.</b> Over the vanilla judge, &tau; rises by 11.9 to 18.5% on HumanEvalPack and 9.9 to 22.6% on MBPP+. 11 of the 12 gains over the three baselines are significant; the exception is self-consistency with Qwen-7B on MBPP+.</li>
+    <li><b>The baselines.</b> At the same budget, multi-agent judging ranks below a single vanilla call in all four settings, self-consistency in three. TopDown's tokens buy new evidence, not repeated opinions.</li>
+    <li><b>Decisions.</b> Qwen-7B's MCC rises by 17.4 to 50.8% over every baseline on HumanEvalPack, all significant, and on MBPP+ significantly against vanilla and multi-agent. Llama-8B's vanilla judge accepts only 18% of programs although half are correct, and TopDown's evidence mostly counts against programs, so its MCC gains are significant only against multi-agent judging.</li>
+  </ul>
+  <div class="legend"><span><i style="background:var(--grey-dot)"></i> baseline</span><span><i style="background:var(--accent)"></i> TopDown, Holm p &lt; 0.05</span><span><i style="border:2px solid var(--accent);width:8px;height:8px"></i> TopDown, not significant</span><span><svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="currentColor" stroke-width="1.5"/><line x1="2" y1="1" x2="2" y2="9" stroke="currentColor" stroke-width="1.5"/><line x1="32" y1="1" x2="32" y2="9" stroke="currentColor" stroke-width="1.5"/></svg> 95% CI of the difference</span></div>
+  <div class="figgrid" id="rq1figs"></div>
+  <p class="figcap">Figure 2. TopDown against each baseline. Grey: baseline score. Blue: TopDown score. Whisker: 95% bootstrap CI of the paired difference, drawn around TopDown's score. Hollow dot: not significant after Holm correction. Right margin: relative gain. Hover a row for exact values.</p>
+  <details><summary>All numbers behind Figure 2</summary><table id="rq1table"></table></details>
+</section>
+
+<section id="rq2">
+  <h2>RQ2 <small>How does TopDown compare with MCTS-Judge?</small></h2>
+  <ul>
+    <li><b>Pairwise accuracy.</b> TopDown has higher pairwise accuracy in distinguishing correct from buggy programs in all four settings (+0.09 to +0.27), and all four 95% intervals of the difference exclude zero. Part of the gap is resolution: a binary verdict leaves many pairs tied, whereas TopDown's score is graded.</li>
+    <li><b>Decisions.</b> TopDown also has the higher MCC in all four settings. The gain is significant only for Qwen-7B; for Llama-8B the two are not significantly different.</li>
+    <li><b>Cost.</b> MCTS-Judge generates 3.3 to 4.7 times TopDown's tokens and makes 6.0 to 7.4 times its LLM calls.</li>
+  </ul>
+  <div class="legend"><span><i style="background:var(--grey-dot)"></i> MCTS-Judge</span><span><i style="background:var(--accent)"></i> TopDown, significant (Holm)</span><span><i style="border:2px solid var(--accent);width:8px;height:8px"></i> TopDown, not significant</span><span><svg width="34" height="10"><line x1="2" y1="5" x2="32" y2="5" stroke="currentColor" stroke-width="1.5"/><line x1="2" y1="1" x2="2" y2="9" stroke="currentColor" stroke-width="1.5"/><line x1="32" y1="1" x2="32" y2="9" stroke="currentColor" stroke-width="1.5"/></svg> 95% bootstrap CI</span></div>
+  <div class="figgrid" id="rq2figs"></div>
+  <p class="figcap">Figure 3. TopDown against MCTS-Judge. Grey: MCTS-Judge; blue: TopDown. Whisker: 95% bootstrap CI (pairwise accuracy: of the difference, drawn around TopDown's score; MCC: of TopDown's score). Filled dot: significant (Holm); hollow: not. Right margin: TopDown's gain. Hover a row for exact values.</p>
+  <details><summary>All numbers behind Figure 3</summary><table id="rq2table"></table></details>
+  <p class="small">MCTS-Judge is a re-implementation from its paper, as its authors released no code. It returns a binary verdict, which is why pairwise accuracy and MCC are used and its score is not thresholded.</p>
+</section>
+
+<section id="discussion">
+  <h2>What we take from this</h2>
+  <ul>
+    <li><b>Why the evidence helps.</b> A judge that reads a program alone has one source of information: its impression of the code. TopDown also asks the judge what the specification demands on a concrete input, traces the program on that input, and compares the two. MCTS-Judge also simulates the code but turns each mismatch into a vote. TopDown weights a mismatch by the model's confidence in its expectation, re-examines a contradiction before considering it a bug and keeps the judge's own verdict in the sum, and it ranks better with between a fifth and a third of the generated tokens (RQ2). Ablations are needed to tell which of these matters.</li>
+    <li><b>Where it helps and where it does not.</b> TopDown exposes only bugs that a probed input reaches. Decisions also depend on the judge's calibration: Llama-8B's judge accepts few programs, so TopDown improves its ranking but rarely moves a verdict across zero. A better judge would benefit directly, since its prior is left untouched.</li>
+    <li><b>Limitations.</b> HumanEvalPack builds on HumanEval, which models may have seen in training, and TopDown's first probes are the docstring examples, which a model may also remember. Its bugs are synthetic and usually one line, which favours bug types that change a returned value. The MBPP+ candidates come from one small generator (Qwen2.5-1.5B-Instruct). MCTS-Judge is our reimplementation, as its authors released no code. We report a single run per setting and one prompt per agent, and only function-level programs. A noisy expectation or trace can make TopDown reject a correct program. Closed-source judges and larger models are untested.</li>
+    <li><b>Next.</b> More benchmarks, larger and closed-source judges to study generalization, agents from a different model family than the judge, component ablations, and a sensitivity analysis over the number of samples per agent.</li>
+  </ul>
+</section>
+
+<section id="reproduce">
+  <h2>Reproduce</h2>
+  <p>Scoring needs a CPU and a few minutes and rewrites <code>results/</code> byte for byte; the bootstrap is seeded.</p>
+<pre><code>pip install -r requirements.txt
+bash code/score.sh</code></pre>
+  <ul>
+    <li><code>code/topdown_run.py</code>: TopDown's first pass and the baselines (GPU, vLLM). <code>code/topdown_feedback.py</code>: the feedback round. <code>code/mcts_judge_run.py</code>: the MCTS-Judge re-implementation. <code>code/evidence.py</code>: the evidence rule.</li>
+    <li><code>code/score_paper.py</code>: RQ1. <code>code/score_mcts.py</code>: RQ2. <code>code/make_tables.py</code>: the tables behind Figures 2 and 3.</li>
+    <li><code>code/run_paper.sh</code>: the exact GPU commands that produced <code>runs/</code>.</li>
+    <li><code>runs/</code>: verdicts, labels, meta (with a SHA-256 of the verdicts) and transcripts for every run. The example above is <code>Python/65|0</code> and <code>Python/65|1</code> in <code>runs/topdown_qwen7b_feedback_hep_transcripts.jsonl</code>.</li>
+  </ul>
+  <p class="small">A GPU rerun gives the same conclusions, not the same verdict files: vLLM sampling is seeded but not bit-reproducible across hardware.</p>
+  <details><summary>References</summary>
+  <ol class="refs">
+    <li>Crupi, Tufano and Bavota. Studying quality improvements recommended via manual and automated code review. ICPC 2026.</li>
+    <li>He, Shi et al. LLM-as-a-judge for software engineering: literature review, vision, and the road ahead. TOSEM 2026.</li>
+    <li>Zhuo. ICE-Score: Instructing large language models to evaluate code. Findings of EACL 2024.</li>
+    <li>Tong and Zhang. CodeJudge: Evaluating code generation with large language models. EMNLP 2024.</li>
+    <li>Gu et al. CRUXEval: a benchmark for code reasoning, understanding and execution. ICML 2024.</li>
+    <li>Wang et al. CodeGlance: understanding code reasoning challenges in LLMs through multi-dimensional feature analysis. ICPC 2026.</li>
+    <li>Fedrushkov et al. Semantic vs. structural signals: log-probability and LLM-as-a-judge for reference-free code evaluation. GEM 2026.</li>
+    <li>Aly, Assaf and Kobti. When is a multi-agent code judge actually grounded? Two label-free measurements, and a judge that declines to guess. 2026. arXiv:2609.30328.</li>
+    <li>Min et al. Beyond accuracy: evaluating self-consistency of code large language models with IdentityChain. ICLR 2024.</li>
+    <li>Wang, Ji et al. MCTS-Judge: Test-time scaling in LLM-as-a-judge for code correctness evaluation. 2026. arXiv:2502.12468.</li>
+    <li>Armstrong and Vlasov. Neural correlates of perceptual decision-making in the primary somatosensory cortex. PNAS 2026.</li>
+    <li>Brooks. Towards a theory of the comprehension of computer programs. Int. J. Man-Machine Studies 1983.</li>
+    <li>Hassabis, Kumaran, Summerfield and Botvinick. Neuroscience-inspired artificial intelligence. Neuron 2017.</li>
+    <li>Kadavath et al. Language models (mostly) know what they know. 2022. arXiv:2207.05221.</li>
+    <li>Papineni et al. BLEU: a method for automatic evaluation of machine translation. ACL 2002.</li>
+    <li>Lin. ROUGE: a package for automatic evaluation of summaries. 2004.</li>
+    <li>Ren et al. CodeBLEU: a method for automatic evaluation of code synthesis. 2020.</li>
+    <li>Tran et al. Does BLEU score work for code migration? ICPC 2019.</li>
+    <li>Zhou et al. CodeBERTScore: evaluating code generation with pretrained models of code. 2023.</li>
+    <li>Dong et al. CodeScore: evaluating code generation by learning code execution. TOSEM 2025.</li>
+    <li>Huang et al. Code ranking with structure awareness contrastive learning. ICPC 2025.</li>
+    <li>Chen et al. CodeT: code generation with generated tests. 2022.</li>
+    <li>Huang et al. AgentCoder: multi-agent-based code generation with iterative testing and optimisation. 2023.</li>
+    <li>Florian and Mike. Inferring code correctness from specification (TRAILS). 2026. arXiv:2605.29822.</li>
+    <li>Bouras et al. HoarePrompt: structural reasoning about program correctness in natural language. ICSE 2026.</li>
+    <li>Ni et al. NExT: teaching large language models to reason about code execution. ICML 2024.</li>
+    <li>Liu, Chen and Jabbarvand. Assessing coherency and consistency of code execution reasoning by large language models. ICSE 2026.</li>
+    <li>Huang et al. Large language models cannot self-correct reasoning yet. ICLR 2024.</li>
+    <li>Tyen et al. LLMs cannot find reasoning errors, but can correct them given the error location. Findings of ACL 2024.</li>
+    <li>Dawid and Skene. Maximum likelihood estimation of observer error-rates using the EM algorithm. 1979.</li>
+    <li>Vitale et al. On the impact of code comments for automated bug-fixing: an empirical study. ICPC 2026.</li>
+    <li>Muennighoff et al. OctoPack: instruction tuning code large language models. NeurIPS 2023 workshop.</li>
+    <li>Liu, Xia, Wang and Zhang. Is your code generated by ChatGPT really correct? Rigorous evaluation of large language models for code generation. NeurIPS 2023.</li>
+    <li>Chicco, T&ouml;tsch and Jurman. The Matthews correlation coefficient (MCC) is more reliable than balanced accuracy, bookmaker informedness, and markedness in two-class confusion matrix evaluation. BioData Mining 2021.</li>
+  </ol>
+  </details>
+</section>
+
+</main>
+<footer><div class="wrap">Anonymous submission. The RQ1 numbers on this page are produced by <code>bash code/score.sh</code> from the frozen runs in this repository; the RQ2 numbers by <code>code/score_mcts.py</code> from the MCTS-Judge runs.</div></footer>
+<div class="tip" id="tip"></div>
+
+<script>
+// ---------- data: results/paper_tables.txt ----------
+const A = [ // model, bench, judge, tau, mcc, tokens
+ ["Qwen-7B","HumanEvalPack","vanilla",0.489,0.523,1],["Qwen-7B","HumanEvalPack","self-consistency x50",0.461,0.530,9892],["Qwen-7B","HumanEvalPack","multi-agent x4",0.434,0.413,7532],["Qwen-7B","HumanEvalPack","TopDown",0.547,0.622,7496],
+ ["Qwen-7B","MBPP+","vanilla",0.417,0.422,1],["Qwen-7B","MBPP+","self-consistency x50",0.425,0.469,7155],["Qwen-7B","MBPP+","multi-agent x5",0.406,0.410,7740],["Qwen-7B","MBPP+","TopDown",0.459,0.529,6465],
+ ["Llama-8B","HumanEvalPack","vanilla",0.318,0.272,1],["Llama-8B","HumanEvalPack","self-consistency x30",0.260,0.279,9709],["Llama-8B","HumanEvalPack","multi-agent x4",0.150,0.186,8697],["Llama-8B","HumanEvalPack","TopDown",0.376,0.280,8546],
+ ["Llama-8B","MBPP+","vanilla",0.230,0.225,1],["Llama-8B","MBPP+","self-consistency x50",0.202,0.195,12564],["Llama-8B","MBPP+","multi-agent x5",0.162,0.162,9020],["Llama-8B","MBPP+","TopDown",0.282,0.268,7786]];
+const B = [ // model, bench, metric, vs, diff, gain%, lo, hi, holm p, sig
+ ["Qwen-7B","HumanEvalPack","tau","vanilla",0.058,11.9,0.042,0.076,0.0060,1],["Qwen-7B","HumanEvalPack","tau","self-consistency x50",0.087,18.8,0.065,0.109,0.0060,1],["Qwen-7B","HumanEvalPack","tau","multi-agent x4",0.113,26.0,0.087,0.139,0.0060,1],
+ ["Qwen-7B","HumanEvalPack","MCC","vanilla",0.099,19.0,0.066,0.133,0.0060,1],["Qwen-7B","HumanEvalPack","MCC","self-consistency x50",0.092,17.4,0.057,0.128,0.0060,1],["Qwen-7B","HumanEvalPack","MCC","multi-agent x4",0.210,50.8,0.162,0.255,0.0060,1],
+ ["Qwen-7B","MBPP+","tau","vanilla",0.041,9.9,0.012,0.074,0.0260,1],["Qwen-7B","MBPP+","tau","self-consistency x50",0.034,8.0,0.001,0.069,0.0610,0],["Qwen-7B","MBPP+","tau","multi-agent x5",0.052,12.9,0.013,0.094,0.0260,1],
+ ["Qwen-7B","MBPP+","MCC","vanilla",0.107,25.3,0.057,0.157,0.0060,1],["Qwen-7B","MBPP+","MCC","self-consistency x50",0.059,12.6,0.006,0.111,0.0610,0],["Qwen-7B","MBPP+","MCC","multi-agent x5",0.119,28.9,0.042,0.197,0.0175,1],
+ ["Llama-8B","HumanEvalPack","tau","vanilla",0.059,18.5,0.040,0.078,0.0060,1],["Llama-8B","HumanEvalPack","tau","self-consistency x30",0.116,44.8,0.091,0.142,0.0060,1],["Llama-8B","HumanEvalPack","tau","multi-agent x4",0.226,150.7,0.190,0.265,0.0060,1],
+ ["Llama-8B","HumanEvalPack","MCC","vanilla",0.009,3.2,-0.017,0.034,1.0,0],["Llama-8B","HumanEvalPack","MCC","self-consistency x30",0.001,0.4,-0.049,0.048,1.0,0],["Llama-8B","HumanEvalPack","MCC","multi-agent x4",0.094,50.6,0.053,0.136,0.0060,1],
+ ["Llama-8B","MBPP+","tau","vanilla",0.052,22.6,0.028,0.078,0.0060,1],["Llama-8B","MBPP+","tau","self-consistency x50",0.080,39.9,0.048,0.113,0.0060,1],["Llama-8B","MBPP+","tau","multi-agent x5",0.120,74.1,0.071,0.173,0.0060,1],
+ ["Llama-8B","MBPP+","MCC","vanilla",0.043,19.2,-0.018,0.106,0.5235,0],["Llama-8B","MBPP+","MCC","self-consistency x50",0.073,37.4,-0.016,0.164,0.4220,0],["Llama-8B","MBPP+","MCC","multi-agent x5",0.106,65.9,0.025,0.186,0.0375,1]];
+const G = [ // RQ2 pairwise accuracy: model, bench, TopDown, MCTS-Judge, CI of the difference lo, hi, gain %, significant
+ ["Qwen-7B","HumanEvalPack",0.957,0.763,0.168,0.220,25.5,1],["Qwen-7B","MBPP+",0.842,0.694,0.100,0.196,21.4,1],
+ ["Llama-8B","HumanEvalPack",0.890,0.621,0.240,0.298,43.3,1],["Llama-8B","MBPP+",0.691,0.603,0.026,0.148,14.7,1]];
+const H = [ // RQ2 MCC: model, bench, TopDown, MCTS-Judge, 95% CI of TopDown's MCC lo, hi, gain %, significant
+ ["Qwen-7B","HumanEvalPack",0.622,0.541,0.574,0.672,14.9,1],["Qwen-7B","MBPP+",0.529,0.456,0.458,0.590,16.0,1],
+ ["Llama-8B","HumanEvalPack",0.280,0.277,0.237,0.325,1.4,0],["Llama-8B","MBPP+",0.268,0.207,0.186,0.349,29.7,0]];
+
+// ---------- helpers ----------
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const tip = document.getElementById('tip');
+function hover(el, html) {
+  el.addEventListener('mousemove', e => { tip.innerHTML = html; tip.style.opacity = 1; tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; });
+  el.addEventListener('mouseleave', () => tip.style.opacity = 0);
+}
+function svgEl(tag, attrs, text) { const n = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; return n; }
+const fmt3 = x => (x >= 0 ? '+' : '') + x.toFixed(3);
+const score = (m, b, j, metric) => A.find(r => r[0] === m && r[1] === b && r[2] === j)[metric === 'tau' ? 3 : 4];
+
+// ---------- dot chart (Figures 2 and 3) ----------
+// rows: {group, label, base, td, lo, hi, text, sig, kind}  kind: 'baseline' | 'variant' | 'vanilla'
+function dotChart(title, rows, xmin, xmax, opts) {
+  const W = 500, left = 150, right = 70, rowH = 26, top = 30, gap = 14;
+  const groups = [...new Set(rows.map(r => r.group))];
+  const H = top + rows.length * rowH + groups.length * gap + 34;
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': title });
+  const x = v => left + (v - xmin) / (xmax - xmin) * (W - left - right);
+  svg.appendChild(svgEl('text', { x: left, y: 16, 'font-size': 13, 'font-weight': 600, fill: 'currentColor' }, title));
+  // grid
+  for (let v = xmin; v <= xmax + 1e-9; v += 0.1) {
+    svg.appendChild(svgEl('line', { x1: x(v), x2: x(v), y1: top - 4, y2: H - 30, stroke: css('--line'), 'stroke-width': 1 }));
+    svg.appendChild(svgEl('text', { x: x(v), y: H - 14, 'font-size': 10, 'text-anchor': 'middle', fill: css('--text-3') }, v.toFixed(1)));
+  }
+  svg.appendChild(svgEl('text', { x: left + (W - left - right) / 2, y: H - 2, 'font-size': 10, 'text-anchor': 'middle', fill: css('--text-3') }, 'score (higher is better)'));
+  let y = top, g = null;
+  rows.forEach(r => {
+    if (r.group !== g) { g = r.group; y += gap; svg.appendChild(svgEl('text', { x: 4, y: y - 2, 'font-size': 11, 'font-weight': 600, fill: css('--text-2') }, g)); }
+    const cy = y + rowH / 2;
+    const row = svgEl('g', { class: 'row' });
+    row.appendChild(svgEl('rect', { x: 0, y: y, width: W, height: rowH, fill: 'transparent' }));
+    row.appendChild(svgEl('text', { x: left - 8, y: cy + 4, 'font-size': 11, 'text-anchor': 'end', fill: 'currentColor' }, r.label));
+    if (r.lo != null) { // whisker around the point the CI is drawn around
+      const c = opts.around === 'td' ? r.td : r.base; const a = x(r.wlo != null ? r.wlo : c + r.lo - r.diff), b = x(r.whi != null ? r.whi : c + r.hi - r.diff);
+      row.appendChild(svgEl('line', { x1: a, x2: b, y1: cy, y2: cy, stroke: 'currentColor', 'stroke-width': 1.5 }));
+      row.appendChild(svgEl('line', { x1: a, x2: a, y1: cy - 4, y2: cy + 4, stroke: 'currentColor', 'stroke-width': 1.5 }));
+      row.appendChild(svgEl('line', { x1: b, x2: b, y1: cy - 4, y2: cy + 4, stroke: 'currentColor', 'stroke-width': 1.5 }));
+    }
+    if (r.base != null) row.appendChild(svgEl('circle', { cx: x(r.base), cy, r: 5, fill: r.kind === 'vanilla' ? css('--grey-light') : css('--grey-dot') }));
+    if (r.td != null) {
+      const col = opts.dotColor(r);
+      row.appendChild(r.sig ? svgEl('circle', { cx: x(r.td), cy, r: 5.5, fill: col, stroke: css('--surface'), 'stroke-width': 1.5 })
+                            : svgEl('circle', { cx: x(r.td), cy, r: 4.5, fill: css('--surface'), stroke: col, 'stroke-width': 2 }));
+    }
+    if (r.text) row.appendChild(svgEl('text', { x: W - right + 8, y: cy + 4, 'font-size': 11, fill: css('--text-2') }, r.text));
+    hover(row, r.tip);
+    svg.appendChild(row); y += rowH;
+  });
+  return svg;
+}
+
+// Figure 2
+(function () {
+  const host = document.getElementById('rq1figs');
+  for (const m of ['Qwen-7B', 'Llama-8B']) for (const metric of ['tau', 'MCC']) {
+    const rows = [];
+    for (const b of ['HumanEvalPack', 'MBPP+']) {
+      const td = score(m, b, 'TopDown', metric);
+      for (const r of B.filter(r => r[0] === m && r[1] === b && r[2] === metric).reverse()) {
+        const base = score(m, b, r[3], metric);
+        rows.push({ group: b, label: r[3].replace(' x', ' ×'), base, td, diff: r[4], lo: r[6], hi: r[7], sig: r[9], kind: 'baseline',
+          text: `+${r[5].toFixed(1)}%${r[9] ? '' : ' ns'}`,
+          tip: `<b>${m}, ${b}, ${metric === 'tau' ? "Kendall's τ" : 'MCC'}</b><br>${r[3]}: ${base.toFixed(3)}<br>TopDown: ${td.toFixed(3)}<br>difference ${fmt3(r[4])} (+${r[5].toFixed(1)}%)<br>95% CI [${fmt3(r[6])}, ${fmt3(r[7])}]<br>Holm p = ${r[8].toFixed(4)}${r[9] ? ' *' : ' ns'}` });
+      }
+    }
+    const xmin = metric === 'tau' ? 0.1 : 0.1, xmax = metric === 'tau' ? 0.6 : 0.7;
+    const d = document.createElement('div'); d.className = 'fig';
+    d.appendChild(dotChart(`${m}  ·  ${metric === 'tau' ? "Kendall's τ" : 'MCC (threshold 0)'}`, rows, xmin, xmax, { around: 'td', dotColor: () => css('--accent') }));
+    host.appendChild(d);
+  }
+  // table
+  const t = document.getElementById('rq1table');
+  t.innerHTML = '<tr><th>Model</th><th>Benchmark</th><th>Metric</th><th>vs</th><th class="num">baseline</th><th class="num">TopDown</th><th class="num">diff</th><th class="num">gain</th><th class="num">95% CI</th><th class="num">Holm p</th></tr>' +
+    B.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2] === 'tau' ? 'τ' : 'MCC'}</td><td>${r[3]}</td><td class="num">${score(r[0], r[1], r[3], r[2]).toFixed(3)}</td><td class="num">${score(r[0], r[1], 'TopDown', r[2]).toFixed(3)}</td><td class="num">${fmt3(r[4])}</td><td class="num">+${r[5].toFixed(1)}%</td><td class="num">[${fmt3(r[6])}, ${fmt3(r[7])}]</td><td class="num">${r[8].toFixed(4)}${r[9] ? ' *' : ' ns'}</td></tr>`).join('');
+})();
+
+// Figure 3: TopDown against MCTS-Judge
+(function () {
+  const host = document.getElementById('rq2figs');
+  for (const m of ['Qwen-7B', 'Llama-8B']) for (const metric of ['pairwise', 'MCC']) {
+    const rows = [];
+    for (const b of ['HumanEvalPack', 'MBPP+']) {
+      const r = (metric === 'pairwise' ? G : H).find(r => r[0] === m && r[1] === b); const td = r[2], base = r[3];
+      const pw = metric === 'pairwise';
+      rows.push({ group: b, label: 'MCTS-Judge', base, td, diff: td - base, lo: r[4], hi: r[5], wlo: pw ? null : r[4], whi: pw ? null : r[5], sig: r[7], kind: 'baseline',
+        text: `+${r[6].toFixed(1)}%${r[7] ? '' : ' ns'}`,
+        tip: `<b>${m}, ${b}, ${pw ? 'pairwise accuracy' : 'MCC'}</b><br>MCTS-Judge: ${base.toFixed(3)}<br>TopDown: ${td.toFixed(3)}<br>difference ${fmt3(td - base)} (+${r[6].toFixed(1)}%)<br>` +
+             (pw ? `95% CI of the difference [${fmt3(r[4])}, ${fmt3(r[5])}]` : `95% CI of TopDown's MCC [${r[4].toFixed(3)}, ${r[5].toFixed(3)}]`) + `<br>${r[7] ? 'significant (Holm)' : 'not significant'}` });
+    }
+    const pw = metric === 'pairwise', d = document.createElement('div'); d.className = 'fig';
+    d.appendChild(dotChart(`${m}  ·  ${pw ? 'Pairwise accuracy' : 'MCC (threshold 0)'}`, rows, pw ? 0.5 : 0.1, pw ? 1.0 : 0.7, { around: 'td', dotColor: () => css('--accent') }));
+    host.appendChild(d);
+  }
+  const t = document.getElementById('rq2table');
+  t.innerHTML = '<tr><th>Model</th><th>Benchmark</th><th>Metric</th><th class="num">MCTS-Judge</th><th class="num">TopDown</th><th class="num">diff</th><th class="num">gain</th><th class="num">95% CI</th><th class="num">significant</th></tr>' +
+    G.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>pairwise</td><td class="num">${r[3].toFixed(3)}</td><td class="num">${r[2].toFixed(3)}</td><td class="num">${fmt3(r[2] - r[3])}</td><td class="num">+${r[6].toFixed(1)}%</td><td class="num">[${fmt3(r[4])}, ${fmt3(r[5])}] (difference)</td><td class="num">${r[7] ? 'yes' : 'no'}</td></tr>`).join('') +
+    H.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>MCC</td><td class="num">${r[3].toFixed(3)}</td><td class="num">${r[2].toFixed(3)}</td><td class="num">${fmt3(r[2] - r[3])}</td><td class="num">+${r[6].toFixed(1)}%</td><td class="num">[${r[4].toFixed(3)}, ${r[5].toFixed(3)}] (TopDown)</td><td class="num">${r[7] ? 'yes' : 'no'}</td></tr>`).join('');
+})();
+
+// Table 1: tokens
+(function () {
+  const t = document.getElementById('tokens');
+  t.innerHTML = '<tr><th>Model</th><th>Benchmark</th><th>Judge</th><th class="num">τ</th><th class="num">MCC</th><th class="num">tokens / program</th></tr>' +
+    A.map(r => `<tr class="${r[2] === 'TopDown' ? 'hl' : ''}"><td>${r[0]}</td><td>${r[1]}</td><td>${r[2].replace(' x', ' ×')}</td><td class="num">${r[3].toFixed(3)}</td><td class="num">${r[4].toFixed(3)}</td><td class="num">${r[5].toLocaleString()}</td></tr>`).join('');
+})();
+
+// ---------- Figure 1: the method ----------
+(function () {
+  const host = document.getElementById('methodfig');
+  const W = 1200, H = 640;
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'TopDown data flow' });
+  const spec = css('--spec'), code = css('--code'), judge = css('--judge'), acc = css('--accent'), t2 = css('--text-2'), t3 = css('--text-3'), surf = css('--surface');
+  const defs = svgEl('defs', {});
+  for (const [id, col] of [['aS', spec], ['aC', code], ['aJ', judge], ['aA', acc], ['aG', t3]]) {
+    const m = svgEl('marker', { id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' });
+    m.appendChild(svgEl('path', { d: 'M0,0 L10,5 L0,10 z', fill: col })); defs.appendChild(m);
+  }
+  svg.appendChild(defs);
+  function box(x, y, w, h, title, lines, col, soft, opts = {}) {
+    const g = svgEl('g', {});
+    g.appendChild(svgEl('rect', { x, y, width: w, height: h, rx: 8, fill: surf, stroke: col, 'stroke-width': 1.5, 'stroke-dasharray': opts.dashed ? '5 4' : 'none' }));
+    g.appendChild(svgEl('rect', { x, y, width: w, height: 24, rx: 8, fill: soft }));
+    g.appendChild(svgEl('rect', { x, y: y + 12, width: w, height: 12, fill: soft }));
+    g.appendChild(svgEl('text', { x: x + 10, y: y + 17, 'font-size': 12.5, 'font-weight': 700, fill: col }, title));
+    if (opts.badge) g.appendChild(svgEl('text', { x: x + w - 8, y: y + 17, 'font-size': 10.5, 'text-anchor': 'end', fill: col }, opts.badge));
+    lines.forEach((l, i) => g.appendChild(svgEl('text', { x: x + 10, y: y + 42 + i * 15, 'font-size': 11.5, fill: typeof l === 'object' ? l.c : 'currentColor', 'font-weight': typeof l === 'object' && l.b ? 600 : 400 }, typeof l === 'object' ? l.t : l)));
+    svg.appendChild(g);
+  }
+  function arrow(d, col, id, dashed) { svg.appendChild(svgEl('path', { d, fill: 'none', stroke: col, 'stroke-width': 1.8, 'marker-end': `url(#${id})`, 'stroke-dasharray': dashed ? '6 4' : 'none' })); }
+  function label(x, y, text, col, anchor) { svg.appendChild(svgEl('text', { x, y, 'font-size': 10.5, fill: col || t2, 'text-anchor': anchor || 'middle', 'font-style': 'italic' }, text)); }
+
+  // level bands
+  svg.appendChild(svgEl('rect', { x: 150, y: 10, width: 720, height: 245, rx: 10, fill: css('--spec-soft'), opacity: 0.35 }));
+  svg.appendChild(svgEl('text', { x: 162, y: 30, 'font-size': 13, 'font-weight': 700, fill: spec }, 'SPECIFICATION LEVEL  ·  sees the specification, never the code'));
+  svg.appendChild(svgEl('rect', { x: 150, y: 385, width: 720, height: 245, rx: 10, fill: css('--code-soft'), opacity: 0.35 }));
+  svg.appendChild(svgEl('text', { x: 162, y: 405, 'font-size': 13, 'font-weight': 700, fill: code }, 'CODE LEVEL  ·  sees the code, never the expectation'));
+
+  // inputs
+  box(10, 70, 125, 95, 'Specification', ['count the vowels', 'in the string s,', 'any letter case'], t2, css('--surface-2'));
+  box(10, 445, 125, 95, 'Candidate code', ['def count_vowels(s):', '  return sum(c in', '  "aeiou" for c in s)'], t2, css('--surface-2'));
+
+  // spec level
+  box(165, 50, 170, 130, '1  Probe agent', ['proposes up to six', 'inputs: examples first,', 'then edge cases', { t: 'count_vowels("AEIOU")', c: spec, b: true }, { t: 'shared by all candidates', c: t3 }], spec, css('--spec-soft'), { badge: 'once per task' });
+  box(355, 50, 200, 130, '2  Predictor agent', ['4 samples: what must a', 'correct program return?', { t: 'expectation = majority', c: spec, b: true }, { t: 'precision p = share agreeing', c: spec, b: true }, { t: '"5" ×4  →  p = 1.0', c: t2 }], spec, css('--spec-soft'), { badge: '×4' });
+  box(640, 50, 220, 130, '3  Re-deriver agent', ['told only: "a check disagreed', 'with this expectation"', '3 more samples, pooled with', 'the 4 → expectation and p', { t: 'recomputed over all 7', c: spec, b: true }, { t: 'only for a contradicted check', c: t3 }], spec, css('--spec-soft'), { badge: '×3', dashed: true });
+
+  // code level
+  box(165, 440, 170, 130, '4  Code tracer', ['comments and docstrings', 'removed; traces the code', 'on each probe', { t: 'observation = its value', c: code, b: true }], code, css('--code-soft'), { badge: 'per check' });
+  box(355, 440, 200, 130, '5  Spec-aware tracer', ['sees spec + code; traces', 'the same probe', { t: 'both agree → r = 0.9', c: code, b: true }, { t: 'else           r = 0.6', c: code, b: true }, { t: 'fallback if 4 is unreadable', c: t3 }], code, css('--code-soft'), { badge: 'per check' });
+  box(640, 440, 220, 130, '6  Re-tracer agent', ['sees only the code; traces', 'that one call again, every', 'variable, loop and step', { t: 'observation = majority of', c: code, b: true }, { t: '3 readings; r = 0.9 if ≥ 2 agree', c: code, b: true }, { t: 'only for a contradicted check', c: t3 }], code, css('--code-soft'), { badge: '×1', dashed: true });
+
+  // middle: compare
+  box(375, 270, 220, 95, 'Compare, per check', [{ t: 'observation ≠ expectation', c: 'currentColor', b: true }, '= prediction error', '→ feedback round (up and down),', 'then compare again'], acc, css('--accent-soft'));
+  box(640, 270, 220, 95, 'After feedback', [{ t: 'still different', c: 'currentColor', b: true }, '= confirmed error', 'resolved errors count', 'as agreeing checks'], acc, css('--accent-soft'));
+
+  // judge + integration (right column)
+  box(895, 40, 295, 100, 'Judge agent  (the prior)', ['sees the specification and the code', '"Is the code correct? YES or NO"', { t: 'prior = log P(YES) − log P(NO)', c: judge, b: true }, { t: 'first answer token; left untouched', c: t3 }], judge, css('--judge-soft'), { badge: 'once' });
+  box(895, 170, 295, 180, 'Evidence  (from p and r of each check)', [
+    { t: 'pc = P(error | correct) = 1 − p·r', c: 'currentColor' },
+    { t: 'pb = P(error | buggy)', c: 'currentColor' },
+    { t: '     = ½ (1 − p(1−r)) + ½ (1 − p·r)', c: 'currentColor' },
+    { t: 'confirmed errors remain:', c: acc, b: true },
+    '  evidence = Σ log(pc / pb) over them',
+    { t: '  (each term < 0; agreeing checks add 0)', c: t3 },
+    { t: 'no error remains:', c: acc, b: true },
+    '  evidence = mean log((1−pc) / (1−pb))',
+    { t: '  over all checks (> 0, at most +0.59 each)', c: t3 }], acc, css('--accent-soft'));
+  box(895, 380, 295, 80, 'Verdict', [{ t: 'score = prior + evidence', c: 'currentColor', b: true }, 'score > 0  →  CORRECT', 'otherwise   →  BUGGY'], judge, css('--judge-soft'));
+  svg.appendChild(svgEl('text', { x: 895, y: 490, 'font-size': 11, fill: t3 }, 'With no evidence, TopDown reduces to the judge alone.'));
+  svg.appendChild(svgEl('text', { x: 895, y: 506, 'font-size': 11, fill: t3 }, 'Counts (6 probes; 4, 3 and 1 samples) and weights'));
+  svg.appendChild(svgEl('text', { x: 895, y: 522, 'font-size': 11, fill: t3 }, '(0.9, 0.6, 0.5) were fixed before the runs, not swept.'));
+  svg.appendChild(svgEl('text', { x: 895, y: 548, 'font-size': 11, fill: t3 }, 'The judge agent reads the specification and the code;'));
+  svg.appendChild(svgEl('text', { x: 895, y: 564, 'font-size': 11, fill: t3 }, 'the six TopDown agents never see its verdict.'));
+
+  // arrows
+  arrow('M135,117 L165,117', t3, 'aG');                 // spec -> probe
+  arrow('M335,117 L355,117', spec, 'aS');               // probe -> predictor
+  arrow('M250,180 L250,440', spec, 'aS'); label(258, 318, 'test inputs', spec, 'start');   // probe -> code tracer
+  arrow('M135,492 L165,492', t3, 'aG');                 // code -> tracer
+  arrow('M335,520 L355,520', code, 'aC');               // tracer -> spec-aware
+  arrow('M455,180 L475,270', spec, 'aS'); label(480, 232, 'expectation + p', spec, 'start');
+  arrow('M455,440 L475,365', code, 'aC'); label(480, 388, 'observation + r', code, 'start');
+  arrow('M595,317 L640,317', acc, 'aA');                // compare -> after feedback
+  arrow('M575,270 C600,220 630,200 660,180', spec, 'aS', true); label(585, 205, 'feedback: up', spec, 'middle');
+  arrow('M575,365 C600,415 630,430 660,440', code, 'aC', true); label(585, 445, 'feedback: down', code, 'middle');
+  arrow('M750,180 L750,270', spec, 'aS');               // re-deriver -> after feedback
+  arrow('M750,440 L750,365', code, 'aC');               // re-tracer -> after feedback
+  arrow('M860,317 L895,317', acc, 'aA');                // after feedback -> evidence
+  arrow('M1042,140 L1042,170', judge, 'aJ');            // judge -> evidence (prior joins)
+  arrow('M1042,350 L1042,380', acc, 'aA');              // evidence -> verdict
+  host.appendChild(svg);
+})();
+</script>
+</body>
+</html>

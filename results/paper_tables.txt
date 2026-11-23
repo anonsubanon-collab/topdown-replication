@@ -1,0 +1,70 @@
+TABLE A (RQ1): scores of every judge. tau = Kendall, MCC at threshold 0. Tokens = generated tokens per program.
+Model     Benchmark      Judge                     tau    MCC  tokens
+Qwen-7B   HumanEvalPack  vanilla                 0.489  0.523       1
+Qwen-7B   HumanEvalPack  self-consistency x50    0.461  0.530    9892
+Qwen-7B   HumanEvalPack  multi-agent x4          0.434  0.413    7532
+Qwen-7B   HumanEvalPack  TopDown                 0.547  0.622    7496
+Qwen-7B   MBPP+          vanilla                 0.417  0.422       1
+Qwen-7B   MBPP+          self-consistency x50    0.425  0.469    7155
+Qwen-7B   MBPP+          multi-agent x5          0.406  0.410    7740
+Qwen-7B   MBPP+          TopDown                 0.459  0.529    6465
+Llama-8B  HumanEvalPack  vanilla                 0.318  0.272       1
+Llama-8B  HumanEvalPack  self-consistency x30    0.260  0.279    9709
+Llama-8B  HumanEvalPack  multi-agent x4          0.150  0.186    8697
+Llama-8B  HumanEvalPack  TopDown                 0.376  0.280    8546
+Llama-8B  MBPP+          vanilla                 0.230  0.225       1
+Llama-8B  MBPP+          self-consistency x50    0.202  0.195   12564
+Llama-8B  MBPP+          multi-agent x5          0.162  0.162    9020
+Llama-8B  MBPP+          TopDown                 0.282  0.268    7786
+
+TABLE B (RQ1): TopDown minus each baseline: difference, relative gain, 95% bootstrap CI (2,000 resamples by problem),
+Holm-adjusted p over the 12 comparisons of each model (tau and MCC). * = significant (p < 0.05).
+Model     Benchmark      Metric vs                        diff     gain             95% CI  Holm p
+Qwen-7B   HumanEvalPack  tau    vanilla                 +0.058   +11.9%   [+0.042, +0.076]  0.0060 *
+Qwen-7B   HumanEvalPack  tau    self-consistency x50    +0.087   +18.8%   [+0.065, +0.109]  0.0060 *
+Qwen-7B   HumanEvalPack  tau    multi-agent x4          +0.113   +26.0%   [+0.087, +0.139]  0.0060 *
+Qwen-7B   HumanEvalPack  MCC    vanilla                 +0.099   +19.0%   [+0.066, +0.133]  0.0060 *
+Qwen-7B   HumanEvalPack  MCC    self-consistency x50    +0.092   +17.4%   [+0.057, +0.128]  0.0060 *
+Qwen-7B   HumanEvalPack  MCC    multi-agent x4          +0.210   +50.8%   [+0.162, +0.255]  0.0060 *
+Qwen-7B   MBPP+          tau    vanilla                 +0.041    +9.9%   [+0.012, +0.074]  0.0260 *
+Qwen-7B   MBPP+          tau    self-consistency x50    +0.034    +8.0%   [+0.001, +0.069]  0.0610 ns
+Qwen-7B   MBPP+          tau    multi-agent x5          +0.052   +12.9%   [+0.013, +0.094]  0.0260 *
+Qwen-7B   MBPP+          MCC    vanilla                 +0.107   +25.3%   [+0.057, +0.157]  0.0060 *
+Qwen-7B   MBPP+          MCC    self-consistency x50    +0.059   +12.6%   [+0.006, +0.111]  0.0610 ns
+Qwen-7B   MBPP+          MCC    multi-agent x5          +0.119   +28.9%   [+0.042, +0.197]  0.0175 *
+Llama-8B  HumanEvalPack  tau    vanilla                 +0.059   +18.5%   [+0.040, +0.078]  0.0060 *
+Llama-8B  HumanEvalPack  tau    self-consistency x30    +0.116   +44.8%   [+0.091, +0.142]  0.0060 *
+Llama-8B  HumanEvalPack  tau    multi-agent x4          +0.226  +150.7%   [+0.190, +0.265]  0.0060 *
+Llama-8B  HumanEvalPack  MCC    vanilla                 +0.009    +3.2%   [-0.017, +0.034]  1.0000 ns
+Llama-8B  HumanEvalPack  MCC    self-consistency x30    +0.001    +0.4%   [-0.049, +0.048]  1.0000 ns
+Llama-8B  HumanEvalPack  MCC    multi-agent x4          +0.094   +50.6%   [+0.053, +0.136]  0.0060 *
+Llama-8B  MBPP+          tau    vanilla                 +0.052   +22.6%   [+0.028, +0.078]  0.0060 *
+Llama-8B  MBPP+          tau    self-consistency x50    +0.080   +39.9%   [+0.048, +0.113]  0.0060 *
+Llama-8B  MBPP+          tau    multi-agent x5          +0.120   +74.1%   [+0.071, +0.173]  0.0060 *
+Llama-8B  MBPP+          MCC    vanilla                 +0.043   +19.2%   [-0.018, +0.106]  0.5235 ns
+Llama-8B  MBPP+          MCC    self-consistency x50    +0.073   +37.4%   [-0.016, +0.164]  0.4220 ns
+Llama-8B  MBPP+          MCC    multi-agent x5          +0.106   +65.9%   [+0.025, +0.186]  0.0375 *
+
+TABLE C (RQ2): TopDown against MCTS-Judge. pairwise = pairwise accuracy (ties count half); MCC at threshold 0; cost = MCTS-Judge / TopDown.
+Model     Benchmark      judge         pairwise    MCC    tokens  calls
+Qwen-7B   HumanEvalPack  TopDown          0.957  0.622
+Qwen-7B   HumanEvalPack  MCTS-Judge       0.763  0.541      3.3x   7.4x
+Qwen-7B   MBPP+          TopDown          0.842  0.529
+Qwen-7B   MBPP+          MCTS-Judge       0.694  0.456      3.4x   7.2x
+Llama-8B  HumanEvalPack  TopDown          0.890  0.280
+Llama-8B  HumanEvalPack  MCTS-Judge       0.621  0.277      4.7x   6.5x
+Llama-8B  MBPP+          TopDown          0.691  0.268
+Llama-8B  MBPP+          MCTS-Judge       0.603  0.207      3.8x   6.0x
+
+TABLE D (RQ2): TopDown minus MCTS-Judge: difference, relative gain, 95% bootstrap CI, Holm-adjusted p over the 4 comparisons of each model. * = significant (p < 0.05).
+Model     Benchmark      Metric       diff     gain             95% CI  Holm p
+Qwen-7B   HumanEvalPack  pairwise   +0.195   +25.5%   [+0.168, +0.220]  0.0020 *
+Qwen-7B   HumanEvalPack  MCC        +0.081   +14.9%   [+0.047, +0.114]  0.0020 *
+Qwen-7B   MBPP+          pairwise   +0.148   +21.4%   [+0.100, +0.196]  0.0020 *
+Qwen-7B   MBPP+          MCC        +0.073   +16.0%   [+0.030, +0.120]  0.0020 *
+Llama-8B  HumanEvalPack  pairwise   +0.269   +43.3%   [+0.240, +0.298]  0.0020 *
+Llama-8B  HumanEvalPack  MCC        +0.004    +1.4%   [-0.037, +0.045]  0.8805 ns
+Llama-8B  MBPP+          pairwise   +0.089   +14.7%   [+0.026, +0.148]  0.0165 *
+Llama-8B  MBPP+          MCC        +0.061   +29.7%   [-0.029, +0.150]  0.3570 ns
+
+Every baseline generates at least as many tokens per program as TopDown; MCTS-Judge keeps its own settings.

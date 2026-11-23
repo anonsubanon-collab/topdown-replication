@@ -1,0 +1,31 @@
+{
+ "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+ "variant": {
+  "MA": 1,
+  "TD_SKIP": 1,
+  "MA_REPEAT": 5,
+  "N_SC": 0
+ },
+ "K": 4,
+ "Q": 6,
+ "N_REV": 3,
+ "LIMIT": 0,
+ "n_items": 418,
+ "n_tasks": 209,
+ "per_candidate": {
+  "vanilla": {
+   "calls": 1.0,
+   "prompt_tokens": 210.3,
+   "gen_tokens": 1.0
+  },
+  "ma": {
+   "calls": 30.0,
+   "prompt_tokens": 9779.6,
+   "gen_tokens": 7739.8,
+   "gen_outputs": 25.0,
+   "capped_outputs": 0.1
+  }
+ },
+ "td_stats": {},
+ "verdicts_sha256": "56197a9c21a8729e0703abde891fdb855ce2ebae6830d6f1bbd09b313bdd3d1a"
+}

@@ -1,0 +1,25 @@
+
+##### qwen7b | HumanEvalPack (6 languages): 1968 programs (984 correct, 984 buggy), 984 correct-buggy pairs, 164 resampling units
+generated tokens / program: TopDown 7496 | MCTS-Judge 24806
+LLM calls / program:        TopDown 21.5 | MCTS-Judge 160.1
+MCTS-Judge / TopDown:       3.3x tokens, 7.4x calls
+   hep: MCTS-Judge stored 3.21 tests/task, 22 tasks without tests; 0.6% of outputs cut at 2048
+   hepx: MCTS-Judge stored 3.18 tests/task, 26 tasks without tests; 0.8% of outputs cut at 2048
+judge                         pairwise     MCC
+TopDown                          0.957   0.622
+MCTS-Judge                       0.763   0.541
+
+##### qwen7b | MBPP+: 418 programs (209 correct, 209 buggy), 209 correct-buggy pairs, 209 resampling units
+generated tokens / program: TopDown 6465 | MCTS-Judge 21838
+LLM calls / program:        TopDown 21.7 | MCTS-Judge 157.1
+MCTS-Judge / TopDown:       3.4x tokens, 7.2x calls
+   mbppplus: MCTS-Judge stored 2.81 tests/task, 13 tasks without tests; 0.4% of outputs cut at 2048
+judge                         pairwise     MCC
+TopDown                          0.842   0.529
+MCTS-Judge                       0.694   0.456
+
+##### TopDown vs MCTS-Judge (qwen7b): difference, relative gain, 95% CI, bootstrap p, Holm-adjusted p over 4 comparisons
+HumanEvalPack  pairwise vs MCTS-Judge   +0.195 ( +25.5%) [+0.168, +0.220]  p=0.0005  Holm p=0.0020 *
+HumanEvalPack  MCC      vs MCTS-Judge   +0.081 ( +14.9%) [+0.047, +0.114]  p=0.0005  Holm p=0.0020 *
+MBPP+          pairwise vs MCTS-Judge   +0.148 ( +21.4%) [+0.100, +0.196]  p=0.0005  Holm p=0.0020 *
+MBPP+          MCC      vs MCTS-Judge   +0.073 ( +16.0%) [+0.030, +0.120]  p=0.0005  Holm p=0.0020 *

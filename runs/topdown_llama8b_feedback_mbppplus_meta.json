@@ -1,0 +1,23 @@
+{
+ "model": "meta-llama/Llama-3.1-8B-Instruct",
+ "variant": {
+  "first_pass": "llama8b_firstpass",
+  "rederive_samples": 3
+ },
+ "n_items": 418,
+ "per_candidate": {
+  "td": {
+   "calls": 9.9,
+   "prompt_tokens": 2414.5,
+   "gen_tokens": 3889.8,
+   "gen_outputs": 9.9,
+   "capped_outputs": 0.6
+  }
+ },
+ "td_stats": {
+  "revisited": 1476,
+  "expectation_changed": 471,
+  "still_discrepant": 1092
+ },
+ "verdicts_sha256": "84c25969593d0bb95fc7a426d231ff9597293ec21e2d1a93c427c5ad2000c029"
+}

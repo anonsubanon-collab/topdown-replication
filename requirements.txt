@@ -1,0 +1,7 @@
+# scoring (CPU): numpy, scipy, scikit-learn
+numpy
+scipy
+scikit-learn
+# rerunning the judges (GPU) additionally needs:
+# vllm==0.11.0
+# datasets

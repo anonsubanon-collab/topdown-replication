@@ -1,0 +1,34 @@
+
+##### qwen7b | HumanEvalPack (6 languages): 1968 programs (984 correct, 984 buggy), 164 resampling units
+generated tokens / program: self-consistency x50 9892 | multi-agent x4 7532 | TopDown 7496
+outputs cut at max_tokens:  self-consistency x50 0.0% | multi-agent x4 1.2%
+TopDown readings missing:    first-pass code-only reading missing 6.2% (680/10956) | feedback re-trace missing 8.9% (384/4315)
+judge                            tau     MCC
+vanilla                        0.489   0.523
+self-consistency x50           0.461   0.530
+multi-agent x4                 0.434   0.413
+TopDown                        0.547   0.622
+
+##### qwen7b | MBPP+: 418 programs (209 correct, 209 buggy), 209 resampling units
+generated tokens / program: self-consistency x50 7155 | multi-agent x5 7740 | TopDown 6465
+outputs cut at max_tokens:  self-consistency x50 0.0% | multi-agent x5 0.4%
+TopDown readings missing:    first-pass code-only reading missing 5.0% (121/2437) | feedback re-trace missing 4.1% (39/951)
+judge                            tau     MCC
+vanilla                        0.417   0.422
+self-consistency x50           0.425   0.469
+multi-agent x5                 0.406   0.410
+TopDown                        0.459   0.529
+
+##### TopDown vs baselines (qwen7b): difference, relative gain, 95% CI, bootstrap p, Holm-adjusted p over 12 comparisons
+HumanEvalPack  tau  vs vanilla                  +0.058 (+11.9%) [+0.042, +0.076]  p=0.0005  Holm p=0.0060 *
+HumanEvalPack  tau  vs self-consistency x50     +0.087 (+18.8%) [+0.065, +0.109]  p=0.0005  Holm p=0.0060 *
+HumanEvalPack  tau  vs multi-agent x4           +0.113 (+26.0%) [+0.087, +0.139]  p=0.0005  Holm p=0.0060 *
+HumanEvalPack  MCC  vs vanilla                  +0.099 (+19.0%) [+0.066, +0.133]  p=0.0005  Holm p=0.0060 *
+HumanEvalPack  MCC  vs self-consistency x50     +0.092 (+17.4%) [+0.057, +0.128]  p=0.0005  Holm p=0.0060 *
+HumanEvalPack  MCC  vs multi-agent x4           +0.210 (+50.8%) [+0.162, +0.255]  p=0.0005  Holm p=0.0060 *
+MBPP+          tau  vs vanilla                  +0.041 ( +9.9%) [+0.012, +0.074]  p=0.0065  Holm p=0.0260 *
+MBPP+          tau  vs self-consistency x50     +0.034 ( +8.0%) [+0.001, +0.069]  p=0.0485  Holm p=0.0610 ns
+MBPP+          tau  vs multi-agent x5           +0.052 (+12.9%) [+0.013, +0.094]  p=0.0065  Holm p=0.0260 *
+MBPP+          MCC  vs vanilla                  +0.107 (+25.3%) [+0.057, +0.157]  p=0.0005  Holm p=0.0060 *
+MBPP+          MCC  vs self-consistency x50     +0.059 (+12.6%) [+0.006, +0.111]  p=0.0305  Holm p=0.0610 ns
+MBPP+          MCC  vs multi-agent x5           +0.119 (+28.9%) [+0.042, +0.197]  p=0.0035  Holm p=0.0175 *

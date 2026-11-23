@@ -1,0 +1,43 @@
+{
+ "model": "meta-llama/Llama-3.1-8B-Instruct",
+ "variant": {
+  "MA": 1,
+  "TD_SKIP": 0,
+  "MA_REPEAT": 4,
+  "N_SC": 30
+ },
+ "K": 4,
+ "Q": 6,
+ "N_REV": 3,
+ "LIMIT": 0,
+ "n_items": 418,
+ "n_tasks": 209,
+ "per_candidate": {
+  "vanilla": {
+   "calls": 1.0,
+   "prompt_tokens": 229.3,
+   "gen_tokens": 1.0
+  },
+  "td": {
+   "calls": 13.9,
+   "prompt_tokens": 3735.4,
+   "gen_tokens": 3896.6
+  },
+  "ma": {
+   "calls": 24.0,
+   "prompt_tokens": 10329.7,
+   "gen_tokens": 6552.1
+  },
+  "vsc": {
+   "calls": 60.0,
+   "prompt_tokens": 22063.3,
+   "gen_tokens": 7616.8
+  }
+ },
+ "td_stats": {
+  "checks": 2319,
+  "discrepancies": 1476,
+  "sensors_agree": 1331
+ },
+ "verdicts_sha256": "e3fa215256ada34e81424cff836d3b13ef5b327f3a31b4baa2d4f296f65c1b3c"
+}

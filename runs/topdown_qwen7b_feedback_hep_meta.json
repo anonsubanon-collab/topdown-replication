@@ -1,0 +1,21 @@
+{
+ "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+ "variant": {
+  "first_pass": "qwen7b_firstpass",
+  "rederive_samples": 3
+ },
+ "n_items": 984,
+ "per_candidate": {
+  "td": {
+   "calls": 6.9,
+   "prompt_tokens": 1984.4,
+   "gen_tokens": 2671.2
+  }
+ },
+ "td_stats": {
+  "revisited": 2056,
+  "expectation_changed": 251,
+  "still_discrepant": 1768
+ },
+ "verdicts_sha256": "68ef5d729c4e3cf9391f4777a4fbf89c329a69d4908573058bb2f99faaf7dd1f"
+}
