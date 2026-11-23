@@ -1,20 +1,4 @@
-"""TopDown's first pass and the three baselines (vanilla judge, self-consistency, multi-agent judging), same model for every method.
-Training-free (frozen prompted model), execution-free (no agent runs code or sees tests), reference-free (the only expectations are the model's own,
-formed from the specification). Verdicts are written and hashed first; labels go to a separate file and are only read by the scorers.
 
-First pass, per task (specification only):  probe agent -> up to Q test inputs;  predictor agent -> K samples of the expected value per input
-                                            (expectation = majority, precision p = share of the K samples that agree).
-            per candidate:                  code tracer (comments and docstrings removed) and spec-aware tracer (specification and code) read the program
-                                            on every input; r = 0.9 if the two agree, else 0.6. The checks (expectation, p, observation, r) are saved in the
-                                            transcripts; the feedback round (topdown_feedback.py) and the scorers read them.
-Baselines (TD_SKIP=1 runs only these, same prompts and token caps for every benchmark):
-  vanilla                one verdict on specification and code (also TopDown's prior).
-  self-consistency (N_SC) N sampled step-by-step reviews, each followed by the one-token verdict, averaged.
-  multi-agent (MA_REPEAT) tracer, inspector, N_REV reviewers and an arbiter (the one-token verdict); repeated MA_REPEAT times, first run greedy, the
-                          rest sampled; arbiter log-odds averaged.
-Usage: BENCHES=hep,hepx,mbppplus python topdown_run.py MODEL TAG OUTDIR
-Env: K (predictor samples, 4), Q (max inputs, 6), N_REV (reviewers, 3), MA (1 = run multi-agent), MA_REPEAT (1), N_SC (0), TD_SKIP (1 = baselines only),
-     LIMIT (first N tasks per benchmark, for smoke tests), PAIRS, TP, MAXLEN, GPU_UTIL, DTYPE, EAGER"""
 import json, os, re, sys, hashlib, math
 from collections import Counter
 
