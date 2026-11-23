@@ -23,7 +23,7 @@ def load(tag, b):
     return dict(V=json.loads(raw), L=json.load(open(f.replace("_verdicts", "_labels"))), T=T, meta=meta)
 tau = lambda y, s: kendalltau(y, s).statistic
 mcc = lambda y, s: matthews_corrcoef(y, (s > 0).astype(int))
-MET = [("tau", tau), ("MCC", mcc)]   # Holm runs over both
+MET = [("tau", tau), ("MCC", mcc)]
 GROUPS = {"HumanEvalPack (6 languages)": ["hep", "hepx"], "MBPP+": ["mbppplus"]}
 rows, tests, frames = {}, [], {}
 for G, benches in GROUPS.items():
@@ -32,7 +32,7 @@ for G, benches in GROUPS.items():
     for b in benches:
         first, fb = load(f"{MODEL}_firstpass", b), load(f"{MODEL}_feedback", b)
         base = load(f"{MODEL}_baselines", b); ma5 = load(f"{MODEL}_ma5", b)
-        sc50 = load(f"{MODEL}_sc50", b)   # x50 self-consistency where x30 spent fewer tokens than TopDown
+        sc50 = load(f"{MODEL}_sc50", b)
         if not (first and fb and base): print(f"[{G}] {b}: missing runs, skipped"); continue
         bid = sorted(i for i in first["L"] if i in base["V"] and i in fb["T"] and (not ma5 or i in ma5["V"]) and (not sc50 or i in sc50["V"])); n = len(bid); ntot += n
         nsc, krep = base["meta"]["variant"].get("N_SC", 0), base["meta"]["variant"].get("MA_REPEAT", 1)
@@ -51,7 +51,7 @@ for G, benches in GROUPS.items():
             if t is not None and t.get("gen_outputs"): c = cut.setdefault(k, [0, 0]); c[0] += t["capped_outputs"]; c[1] += t["gen_outputs"]
         if pfb["td"].get("gen_outputs"): c = cut.setdefault("TopDown feedback calls", [0, 0]); c[0] += pfb["td"]["capped_outputs"]; c[1] += pfb["td"]["gen_outputs"]
         if pf["td"].get("gen_outputs"): c = cut.setdefault("TopDown first pass", [0, 0]); c[0] += pf["td"]["capped_outputs"]; c[1] += pf["td"]["gen_outputs"]
-        u = unp.setdefault("first-pass code-only reading missing", [0, 0])   # proxy for cut / unparsable tracer output
+        u = unp.setdefault("first-pass code-only reading missing", [0, 0])
         for i in bid:
             for c in first["T"][i]["checks"]: u[0] += c["code_only"] is None; u[1] += 1
         r = unp.setdefault("feedback re-trace missing", [0, 0])

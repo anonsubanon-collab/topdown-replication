@@ -13,7 +13,7 @@ from collections import Counter
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from evidence import evidence
 SRC = open(os.path.join(HERE, "topdown_run.py")).read()
-exec(SRC[:SRC.index("for bench in todo:")])   # model, prompts and helpers of the first pass
+exec(SRC[:SRC.index("for bench in todo:")])
 BASE = os.environ["BASE_TAG"]; K_UP = 3
 def lines(p):
     """Read a transcripts file stored plain (.jsonl) or compressed (.jsonl.gz)."""
@@ -35,11 +35,9 @@ for bench in todo:
     COST.clear()
     jobs = [(i, j) for i in ids for j, c in enumerate(OLD[i]["checks"]) if c["disc"]]
     print(f"{MODEL} {bench}: {len(ids)} candidates, {len(jobs)} prediction errors sent through the feedback round", flush=True)
-    # UP: re-derive per (task, input) once - the specification side never sees a candidate, so candidates of one task share it
     upkeys = sorted({(i.split("|")[0], OLD[i]["checks"][j]["call"]) for i, j in jobs})
     task_item = {i.split("|")[0]: items[i] for i in ids}
     up = dict(zip(upkeys, gen([P([{"role": "user", "content": spec_blk(task_item[t]) + UP.format(probe=call)}]) for t, call in upkeys], "td", 768, 0.7, K_UP)))
-    # DOWN: focused code-only re-trace of the contradicted call
     down = dict(zip(jobs, (o[0] for o in gen([P([{"role": "user", "content": f"Code ({items[i]['lang']}):\n```\n{strip_doc(items[i]['code'], items[i]['lang'])}\n```"
                 + DOWN.format(probe=OLD[i]["checks"][j]["call"])}]) for i, j in jobs], "td", 1024))))
     R, T, st = {}, {}, Counter()

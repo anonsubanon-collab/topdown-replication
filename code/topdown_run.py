@@ -23,16 +23,16 @@ from vllm import LLM, SamplingParams
 MODEL, TAG, OUTD = sys.argv[1:4]; os.makedirs(OUTD, exist_ok=True)
 K = int(os.environ.get("K", "4")); Q = int(os.environ.get("Q", "6")); NREV = int(os.environ.get("N_REV", "3")); LIMIT = int(os.environ.get("LIMIT", "0"))
 RUN_MA = int(os.environ.get("MA", "1")); TD_SKIP = int(os.environ.get("TD_SKIP", "0")); MA_REPEAT = int(os.environ.get("MA_REPEAT", "1")); N_SC = int(os.environ.get("N_SC", "0"))
-R_AGREE, R_SINGLE, Q_EXPOSE = 0.9, 0.6, 0.5   # tracer reliability when the two tracers agree / differ; probability that an input exposes a bug
+R_AGREE, R_SINGLE, Q_EXPOSE = 0.9, 0.6, 0.5
 PREC_HI = 0.75
 VARIANT = dict(MA=RUN_MA, TD_SKIP=TD_SKIP, MA_REPEAT=MA_REPEAT, N_SC=N_SC)
 PAIRS = os.environ.get("PAIRS", os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "mbppplus_pairs.json"))
-BENCHES = os.environ.get("BENCHES", "hep,hepx,mbppplus").split(",")   # hep = HumanEvalPack Python/JS/Java, hepx = C++/Go/Rust
+BENCHES = os.environ.get("BENCHES", "hep,hepx,mbppplus").split(",")
 todo = [b for b in BENCHES if not os.path.exists(f"{OUTD}/topdown_{TAG}_{b}_verdicts.json")]
 if not todo: sys.exit("nothing to do: all outputs exist")
 
 def load(bench):
-    if bench == "hepx":   # HumanEvalPack C++/Go/Rust
+    if bench == "hepx":
         items = []
         for lang in ("cpp", "go", "rust"):
             for r in load_dataset("bigcode/humanevalpack", lang, split="test"):
@@ -59,7 +59,7 @@ spec_blk = lambda it: f"Specification ({it['lang']}):\n```\n{it['spec']}\n```"
 code_blk = lambda it: f"Candidate implementation:\n```\n{it['code']}\n```"
 NOTSEEN = "You have NOT seen any implementation yet. "
 
-COST = {}   # method -> Counter(calls, prompt_tokens, gen_tokens)
+COST = {}
 def account(method, outs):
     c = COST.setdefault(method, Counter()); c["calls"] += sum(len(o.outputs) for o in outs)
     c["prompt_tokens"] += sum(len(o.prompt_token_ids) * len(o.outputs) for o in outs); c["gen_tokens"] += sum(len(s.token_ids) for o in outs for s in o.outputs)
@@ -69,7 +69,7 @@ def gen(texts, method, mx, temp=0.0, n=1, seed=0):
     outs = llm.generate(texts, SamplingParams(temperature=temp, top_p=0.95 if temp else 1.0, n=n, max_tokens=mx, seed=seed), use_tqdm=False)
     account(method, outs)
     c = COST.setdefault(method, Counter()); c["gen_outputs"] += sum(len(o.outputs) for o in outs)
-    c["capped_outputs"] += sum(1 for o in outs for s_ in o.outputs if len(s_.token_ids) >= mx)   # outputs cut off at max_tokens
+    c["capped_outputs"] += sum(1 for o in outs for s_ in o.outputs if len(s_.token_ids) >= mx)
     return [[s_.text.strip() for s_ in o.outputs] for o in outs]
 
 def first_token_logprobs(texts, method):
@@ -77,7 +77,7 @@ def first_token_logprobs(texts, method):
     outs = llm.generate(texts, SamplingParams(temperature=0, max_tokens=1, logprobs=20), use_tqdm=False); account(method, outs)
     return [[(lp.decoded_token.strip().upper(), lp.logprob) for lp in o.outputs[0].logprobs[0].values()] for o in outs]
 
-def verdict(convs, method):   # log P(YES) - log P(NO) over the top-20 first-token logprobs
+def verdict(convs, method):
     dv = []
     for top in first_token_logprobs([P(c + [{"role": "user", "content": ASK}]) for c in convs], method):
         y = n = -30.0
@@ -87,7 +87,7 @@ def verdict(convs, method):   # log P(YES) - log P(NO) over the top-20 first-tok
         dv.append(y - n)
     return dv
 
-def norm(v):   # canonical text of a value, so formatting differences are not counted as discrepancies
+def norm(v):
     v = v.strip().strip("`*").strip().rstrip(".;").strip()
     v = re.sub(r"^(?:returns?|output|result|value|=>|->|=)\s*:?\s*", "", v, flags=re.I)
     v = re.sub(r"(?:List\.of|Arrays\.asList|new\s*\w+\s*\[\s*\])", "", v).replace('"', "'").replace(" ", "").replace("{", "[").replace("}", "]")
@@ -98,14 +98,13 @@ def norm(v):   # canonical text of a value, so formatting differences are not co
     try: return repr(round(float(v), 6))
     except ValueError: return v
 
-def numbered(text, n):   # 'i: value' lines -> {i: value}
+def numbered(text, n):
     d = {}
     for m in re.finditer(r"^\s*(?:[-*]\s*)?\(?(\d+)\)?\s*[:.)]\s*(.+?)\s*$", text, re.M):
         i = int(m.group(1))
         if 1 <= i <= n and i not in d: d[i] = m.group(2)
     return d
 
-# ---------- prompts ----------
 JSONFMT = ("Write every value as a JSON literal: numbers, true/false, null, \"strings\", [lists] (also for arrays, vectors, slices and tuples), "
            "{\"key\": value} for maps; write ERROR if the call raises an exception, panics or does not terminate.")
 INTENT = (f"\n\n{NOTSEEN}From the specification alone, list at most {Q} valid test inputs (inputs the specification allows) that best "
@@ -123,29 +122,28 @@ MA_INSPECT = ("\n\nWithout running it, list at most 6 boundary rules implied by 
               "'<number>: <rule> - OK' or '<number>: <rule> - VIOLATED: <reason>'. Output nothing else.")
 MA_REVIEW = "\n\nWithout running it, review the candidate for bugs against the specification. List each concrete bug, or state that none is found. Be concise."
 SC_REVIEW = "\n\nWithout running it, review the candidate step by step against the specification and decide whether it is correct. Be concise."
-MA_CAPS = (4096, 768, 768, 1024)   # max generated tokens: multi-agent tracer, inspector, reviewer; self-consistency review
+MA_CAPS = (4096, 768, 768, 1024)
 FINDINGS = "\n\nFindings from reviewers who analysed the candidate without running it:\n"
 
-# ---------- parsing ----------
-def value_of(t):   # a RESULT line may wrap the value in prose or markdown; keep the last backticked span, else the bare text
+def value_of(t):
     if t is None: return None
     spans = [x for x in re.findall(r"`+([^`]+?)`+", t) if x.strip()]
     return (spans[-1] if spans else t).strip().strip("*").strip()
-def results_v2(text, n):   # 'RESULT i: value' lines anywhere in the text
+def results_v2(text, n):
     d = {}
     for m in re.finditer(r"RESULT\**[ \t]*(\d+)[ \t]*\**[ \t]*:[ \t]*\**(.+?)[ \t]*$", text, re.M | re.I):
         i = int(m.group(1))
         if 1 <= i <= n: d[i] = value_of(m.group(2))
     return d
-def parse_preds(text, n):   # predictions are read by position (one value line per call); 'k:' and 'RESULT n:' prefixes are stripped.
-    vals = []               # Falls back to explicit numbers if the line count is off.
+def parse_preds(text, n):
+    vals = []
     for l in text.splitlines():
         l = re.sub(r"^\s*(?:[-*]\s*)?(?:\d+\s*(?::|\)|\.(?=\s)))?\s*(?:\**RESULT\**(?:\b[^:\n]{0,12}:|\s+))?\s*", "", l).strip()
         if l: vals.append(value_of(l))
     if len(vals) == n: return {i: v for i, v in enumerate(vals, 1)}
     d = results_v2(text, n)
     return d if d else {i: value_of(re.sub(r"^\**RESULT\**\s*\d*\s*\**\s*:\s*", "", v)) for i, v in numbered(text, n).items()}
-def strip_doc(c, lang):   # code-only view: no docstrings or comments, so the tracer cannot read the intended behaviour
+def strip_doc(c, lang):
     c = re.sub(r'("""|\'\'\')[\s\S]*?\1', "", c) if lang == "python" else re.sub(r"/\*[\s\S]*?\*/", "", c)
     c = re.sub(r"(?m)^\s*#.*$", "", c) if lang == "python" else re.sub(r"(?m)^\s*//.*$", "", c)
     return "\n".join(l for l in c.splitlines() if l.strip())
@@ -159,18 +157,16 @@ for bench in todo:
     print(f"{MODEL} {bench}: {len(items)} candidates, {len(tids)} tasks, K={K} Q={Q} N_REV={NREV}", flush=True)
     COST.clear(); tid = lambda it: it["id"].split("|")[0]; R = {it["id"]: {} for it in items}; T = {it["id"]: {} for it in items}
 
-    # vanilla: one verdict on specification and code
     for it, d in zip(items, verdict([[{"role": "user", "content": spec_blk(it) + "\n\n" + code_blk(it)}] for it in items], "vanilla")): R[it["id"]]["vanilla"] = d
 
     if TD_SKIP: td_stats = {}
     else:
-        # ---------- specification level (per task) ----------
         intent = dict(zip(tids, (o[0] for o in gen([P([{"role": "user", "content": spec_blk(tasks[t]) + INTENT}]) for t in tids], "td", 512))))
         tagged = lambda tag, txt: [x.strip().strip("`").strip() for x in re.findall(rf"^\s*(?:[-*]|\d+[.)])?\s*\**{tag}\**\s*:\s*\**(.+?)\s*$", txt, re.M | re.I)]
         probes = {t: [p for p in tagged("PROBE", intent[t]) if p][:Q] for t in tids}
         ptids = [t for t in tids if probes[t]]
         preds = dict(zip(ptids, gen([P([{"role": "user", "content": spec_blk(tasks[t]) + PRED + "\n".join(f"{i}: {p}" for i, p in enumerate(probes[t], 1))}]) for t in ptids], "td", 384, 0.7, K)))
-        prior = {}   # t -> {i: (raw value, normalized, precision)}
+        prior = {}
         for t in tids:
             prior[t] = {}
             if t not in preds: continue
@@ -183,7 +179,6 @@ for bench in todo:
         print(f"  TD predictions: {sum(map(len, probes.values())) / len(tids):.1f} inputs per task; "
               f"{sum(1 for t in tids for v in prior[t].values() if v[2] >= PREC_HI) / max(1, sum(map(len, prior.values()))):.0%} of expectations at p >= {PREC_HI}", flush=True)
 
-        # ---------- code level (per candidate): two tracers per input ----------
         byid = {it["id"]: it for it in items}
         tr_items = [it for it in items if probes[tid(it)]]
         keys = [(it["id"], i) for it in tr_items for i in prior[tid(it)]]
@@ -208,7 +203,6 @@ for bench in todo:
         td_stats = dict(stats)
     print(f"  TD done: {td_stats}", flush=True)
 
-    # ---------- multi-agent judging: same roles and caps for every benchmark ----------
     if RUN_MA:
       base = lambda it: spec_blk(it) + "\n\n" + code_blk(it); ma_scores = {it["id"]: [] for it in items}
       for rep in range(MA_REPEAT):
@@ -225,14 +219,12 @@ for bench in todo:
         for it, d in zip(items, verdict(ma_conv, "ma")): ma_scores[it["id"]].append(d)
       for k, v in ma_scores.items(): R[k]["ma_arbiter"] = sum(v) / len(v)
 
-    # ---------- self-consistency ----------
     if N_SC:
         revs = gen([P([{"role": "user", "content": spec_blk(it) + "\n\n" + code_blk(it) + SC_REVIEW}]) for it in items], "vsc", MA_CAPS[3], 0.7, N_SC)
         convs = [[{"role": "user", "content": spec_blk(it) + "\n\n" + code_blk(it) + SC_REVIEW}, {"role": "assistant", "content": r}] for it, rs in zip(items, revs) for r in rs]
         ds = verdict(convs, "vsc")
         for n_, it in enumerate(items): R[it["id"]]["vsc"] = sum(ds[n_ * N_SC:(n_ + 1) * N_SC]) / N_SC
 
-    # ---------- freeze verdicts, then write labels separately ----------
     vf = f"{OUTD}/topdown_{TAG}_{bench}_verdicts.json"; raw = json.dumps(R, sort_keys=True).encode()
     n = len(items); per = {m: {k: round(v / n, 1) for k, v in c.items()} for m, c in COST.items()}
     json.dump(dict(model=MODEL, variant=VARIANT, K=K, Q=Q, N_REV=NREV, LIMIT=LIMIT, n_items=n, n_tasks=len(tids), per_candidate=per, td_stats=td_stats,

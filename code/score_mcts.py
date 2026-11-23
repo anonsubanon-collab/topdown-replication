@@ -53,7 +53,7 @@ for G, benches in GROUPS.items():
     pos = {}
     for k, (t, lab) in enumerate(zip(tk, y)): pos.setdefault(t, {})[int(lab)] = k
     assert all(len(p) == 2 for p in pos.values()), "every problem needs one correct and one buggy program"
-    pair = {t: (p[1], p[0]) for t, p in pos.items()}                                  # task -> (correct index, buggy index)
+    pair = {t: (p[1], p[0]) for t, p in pos.items()}
     unit_prog = {g: np.where(grp == g)[0] for g in ug}
     unit_pair = {g: np.array([pair[t] for t in sorted(pair) if (t.split("/", 1)[1] if G.startswith("Human") else t) == g]) for g in ug}
     allpairs = np.array([pair[t] for t in sorted(pair)])

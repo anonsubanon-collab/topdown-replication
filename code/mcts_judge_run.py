@@ -49,14 +49,13 @@ from collections import Counter
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODEL, TAG, OUTD = sys.argv[1:4]; os.makedirs(OUTD, exist_ok=True)
 BENCHES = os.environ.get("BENCHES", "hep,hepx,mbppplus").split(","); LIMIT = int(os.environ.get("LIMIT", "0"))
-# ---- Table 6 ----
 DEPTH, ROLLOUTS, ALPHA, W_L, W_U, BETA, GAMMA, DELTA, EPS = 9, 8, 3.0, 0.1, 0.9, 5, 3, 7, 1.1
 TEMP, TOP_P, TOP_K, MAX_TOKENS = 0.4, 0.95, 40, 2048
 DIFFICULTY = os.environ.get("MCTS_DIFFICULTY", "medium")
 PAIRS = os.environ.get("PAIRS", os.path.join(HERE, "..", "data", "mbppplus_pairs.json"))
 src = open(os.path.join(HERE, "topdown_run.py")).read()
 from datasets import load_dataset
-exec(src[src.index("def load(bench):"):src.index("\nllm = LLM(")])   # identical item loading to topdown_run.py
+exec(src[src.index("def load(bench):"):src.index("\nllm = LLM(")])
 
 from vllm import LLM, SamplingParams
 llm = LLM(MODEL, dtype=os.environ.get("DTYPE", "bfloat16"), max_model_len=int(os.environ.get("MAXLEN", "8192")),
@@ -65,17 +64,15 @@ tok = llm.get_tokenizer()
 
 import time
 COST, STATS = Counter(), Counter()
-# token budget: per stage (STAGE), per program (PROG; task-level calls are charged to ("task", t) and split over that task's programs at the end)
 STAGE, PROG, PROG_P = {}, Counter(), Counter()
-# stage -> budget group
 GROUP = {"test_generation": "test construction", "test_reformat": "test construction", "test_validation": "test construction",
          "global_g": "search", "self_assessment": "search", "subtask_analysis": "search", "subtask_summary": "search",
          "simulation": "simulated execution", "comparison": "simulated execution"}
 seed_of = lambda *key: int(hashlib.md5("|".join(map(str, key)).encode()).hexdigest()[:8], 16)
 rng_of = lambda *key: random.Random(seed_of(*key))
-def chat(system, user, prefill):   # the paper's <|system|> / <|user|> / <|assistant|> layout; the assistant text is continued by the model (I12: + newline)
+def chat(system, user, prefill):
     return tok.apply_chat_template([{"role": "system", "content": system}, {"role": "user", "content": user}], tokenize=False, add_generation_prompt=True) + prefill + "\n"
-def gen(prompts, seeds, stage, owners, n=1):   # every call: Table 6 sampling, 2048 max output tokens, its own seed; tokens charged to stage and owner
+def gen(prompts, seeds, stage, owners, n=1):
     if not prompts: return []
     t0 = time.time()
     outs = llm.generate(prompts, [SamplingParams(temperature=TEMP, top_p=TOP_P, top_k=TOP_K, n=n, max_tokens=MAX_TOKENS, seed=s) for s in seeds], use_tqdm=False)
@@ -86,10 +83,10 @@ def gen(prompts, seeds, stage, owners, n=1):   # every call: Table 6 sampling, 2
         PROG[own] += g; PROG_P[own] += p
         COST["calls"] += len(o.outputs); COST["gen_tokens"] += g; COST["gen_outputs"] += len(o.outputs); COST["capped_outputs"] += c; COST["prompt_tokens"] += p
     return [[s.text for s in o.outputs] for o in outs]
-UNPARSED = {}   # up to 25 raw samples per kind of answer the parser could not read (saved in the meta for inspection)
+UNPARSED = {}
 def _keep(what, t):
     if len(UNPARSED.setdefault(what, [])) < 25: UNPARSED[what].append(t[-600:])
-def yes_no(t, what):   # I10: first Yes/No word
+def yes_no(t, what):
     m = re.search(r"\b(yes|no)\b", t, re.I)
     if not m: STATS[f"{what}_unparsed"] += 1; _keep(what, t)
     return bool(m) and m.group(1).lower() == "yes"
@@ -98,18 +95,17 @@ def last_of(t, pattern, what):
     if not m: STATS[f"{what}_unparsed"] += 1; _keep(what, t)
     return m[-1].upper() if m else None
 
-# ---- prompts, verbatim (reference-code lines removed) ----
-VAN_SYS = "Determine the correctness of the code snippet. Output Yes or No."                                             # Table 8
+VAN_SYS = "Determine the correctness of the code snippet. Output Yes or No."
 VAN_USR = "Problem Statement:{problem}\nExample:{example}\nCode Snippet ({language}):{code}"
 VAN_PRE = "Answer (Yes or No only):"
-SA_SYS = ("You are a code evaluation planning expert. Your task is to assess whether the suggested evaluator agent should proceed based on "  # Table 10
+SA_SYS = ("You are a code evaluation planning expert. Your task is to assess whether the suggested evaluator agent should proceed based on "
           "the provided problem statement, code snippet, and evaluation history. Determine if this evaluator will enhance coverage or "
           "completeness of the assessment.")
 SA_USR = ("Problem Statement: {problem}\nCode Snippet:{language}{code}\nProposed Next Evaluator: {agent}\nEvaluation History: Agents previously "
           "used: {history}\nInstruction: Skip the evaluation only if it very negatively affect the assessment. Otherwise, please respond 'Yes' "
           "to include the evaluator.")
 SA_PRE = "Decision: (Yes or No only)"
-SUB_SYS = ("You will be provided with a problem statement and a code snippet that supposedly addresses the problem in {language}. Your task is "   # Table 11
+SUB_SYS = ("You will be provided with a problem statement and a code snippet that supposedly addresses the problem in {language}. Your task is "
            "to {task}. Do not provide a corrected version.\nEvaluation Steps:1. Read the problem statement carefully and identify the required "
            "functionalities of the implementation. You can refer to the example to understand the problem better.\n2. {step} 3. Finally, "
            "conclude your evaluation.")
@@ -118,7 +114,7 @@ SUB_PRE = "Evaluation ({label}):"
 SUM_SYS = 'You will be provided with an analysis result of a code snippet. If the analysis believes that the code snippet is correct, output: "Yes". Otherwise, output: "No".'
 SUM_USR = "Analysis Result:{analysis}"
 SUM_PRE = "Final Answer (Yes or No only):"
-GEN_SYS = ("You are an AI assistant specializing in problem analysis and test case generation, with particular expertise in {difficulty} test "  # Table 12
+GEN_SYS = ("You are an AI assistant specializing in problem analysis and test case generation, with particular expertise in {difficulty} test "
            "cases. Your task is to generate comprehensive test cases based on the given problem description.")
 GEN_USR = ("Problem:{problem}\n### Instructions: Please analyze the problem statement carefully and create five well-rounded test cases. The test "
            "cases should be at {difficulty} difficulty level. Your test cases should: 1. Cover a variety of scenarios to thoroughly validate code "
@@ -139,7 +135,7 @@ VAL_USR = ("Problem:{problem}\nTest Case:{test_case}\n### Instructions: Validate
            "the expected behavior outlined in the problem description. Do not provide a corrected version. Return PASS or FAIL to indicate the "
            "accuracy of the given test case.")
 VAL_PRE = "Let's validate the correctness of the test case step-by-step:"
-SIM_SYS = "You are an AI assistant skilled in executing {language} scripts."                                              # Table 13
+SIM_SYS = "You are an AI assistant skilled in executing {language} scripts."
 SIM_USR = ("Execute the following {language} script. Analyze the code and run each subfunction in the test case step-by-step.\nCode:{code}\n"
            "Test Case:{test_case}\nInstruction: Act as a {language} interpreter to execute the code line-by-line, tracking changes in each "
            "variable throughout the process. Based on this execution trace, determine the output of the unit test case.")
@@ -150,7 +146,6 @@ CMP_USR = ("Problem: {problem}\nTest Case:{test_case}\nActual Output:{answer}\n#
            "actual output. Compare this result with the expected answer, focusing on correctness rather than specific formatting. Note: Do not "
            "judge the code; simply validate whether the results match.")
 CMP_PRE = "Let's check the results, and conclude with **MATCH** or **NOT MATCH** after the comparison."
-# subtasks: (agent name, prefill label, task, evaluation step 2). Index 0 is Table 11 verbatim; 1-8 are ours in the same template (D2, I1).
 FOCUS = [("Code Logic Evaluation", "Code Logic Analysis", "check if the code snippet covers the required functionalities",
           "Read the code snippet and analyze its logic. Check if the code snippet covers all the required functionalities of the problem."),
          ("Boundary Condition Evaluation", "Boundary Condition Analysis", "check if the code snippet handles the boundary conditions implied by the problem",
@@ -171,12 +166,12 @@ FOCUS = [("Code Logic Evaluation", "Code Logic Analysis", "check if the code sni
           "List every requirement of the problem and check that the code snippet implements each of them and nothing that contradicts them.")]
 assert len(FOCUS) == DEPTH
 
-def fields(it, bench):   # I4: (problem statement, example) for Tables 8 and 11; the full statement is used everywhere else
+def fields(it, bench):
     k = "Your code should satisfy this example:"
     if bench == "mbppplus" and k in it["spec"]:
         d, e = it["spec"].split(k, 1); return d.replace('"""', "").strip(), e.replace('"""', "").strip()
     return it["spec"], ""
-def parse_tests(txt):   # I10: every {name: {"input": ..., "expected_output": ...}} object in the reformatted output
+def parse_tests(txt):
     found, dec, i = [], json.JSONDecoder(), 0
     def walk(o, name=None):
         if isinstance(o, dict) and "input" in o and "expected_output" in o:
@@ -204,7 +199,6 @@ for bench in BENCHES:
     F = {k: fields(byid[k], bench) for k in ids}
     print(f"MCTS-Judge {MODEL} {bench}: {len(items)} programs, {len(tids)} tasks", flush=True)
 
-    # ---- reward, phase 1 (before the search, problem statement only): generate -> reformat -> validate beta times -> store (Table 12) ----
     raw = dict(zip(tids, (o[0] for o in gen([chat(GEN_SYS.format(difficulty=DIFFICULTY), GEN_USR.format(problem=tasks[t]["spec"], difficulty=DIFFICULTY), GEN_PRE)
                                              for t in tids], [seed_of("gen", t) for t in tids], "test_generation", [("task", t) for t in tids]))))
     js = dict(zip(tids, (o[0] for o in gen([chat(JSON_SYS, JSON_USR.format(problem=tasks[t]["spec"], test_cases=raw[t]), JSON_PRE) for t in tids],
@@ -224,7 +218,7 @@ for bench in BENCHES:
         sys.exit(f"ABORT {bench}: test construction produced no usable tests (stored {STATS['tests_stored']}, empty validations "
                  f"{STAGE['test_validation']['empty_outputs']}/{STAGE['test_validation']['calls']}); not running the search")
 
-    def simulate(keys):   # reward, phase 2 (Table 13): keys = [(program id, draw tag)] -> {key: h or None (no stored test)}
+    def simulate(keys):
         pick = {key: rng_of("pick", *key).sample(tests[tid(byid[key[0]])], min(GAMMA, len(tests[tid(byid[key[0]])]))) for key in keys}
         sk = [(key, q) for key in keys for q in range(len(pick[key]))]
         sims = gen([chat(SIM_SYS.format(language=byid[key[0]]["lang"]), SIM_USR.format(language=byid[key[0]]["lang"], code=byid[key[0]]["code"],
@@ -238,13 +232,11 @@ for bench in BENCHES:
             tot[(key, q)] += 1; hit[(key, q)] += last_of(o[0], r"\bNOT[\s*_]*MATCH\b|\bMATCH\b", "comparison") == "MATCH"
         return {key: (all(hit[(key, q)] * 2 > tot[(key, q)] for q in range(len(pick[key]))) if pick[key] else None) for key in keys}, pick
 
-    # ---- global evaluation g: the Table 8 vanilla verdict (I5) ----
     G = dict(zip(ids, (yes_no(o[0], "g") for o in gen([chat(VAN_SYS, VAN_USR.format(problem=F[k][0], example=F[k][1], language=byid[k]["lang"],
                                                                                          code=byid[k]["code"]), VAN_PRE) for k in ids], [seed_of("g", k) for k in ids], "global_g", ids))))
 
-    # ---- MCTS, step-synchronous over programs (each program has its own tree; batching does not couple them) ----
-    tree = {k: {} for k in ids}      # node (tuple of actions: subtask index or -1 = null) -> dict(Q, N, sub = the node's subtask child or -1)
-    val = {k: {} for k in ids}       # subtask node -> (analysis, verdict)
+    tree = {k: {} for k in ids}
+    val = {k: {} for k in ids}
     def add(k, node):
         used = {a for a in node if a >= 0}; free = [j for j in range(len(FOCUS)) if j not in used]
         tree[k][node] = dict(Q=0.0, N=0, sub=rng_of("sub", k, node).choice(free) if free else -1)
@@ -257,31 +249,29 @@ for bench in BENCHES:
             choice, sa_jobs = {}, []
             for k in ids:
                 node = path[k]; ch = children(k, node); new = [c for c in ch if c not in tree[k]]
-                if sim[k]: choice[k] = ch[0]                                                     # simulation: the non-null child when there is one
-                elif new: choice[k] = rng_of("expand", k, r, depth).choice(new); sim[k] = True; STATS["expansions"] += 1   # expansion: random unused child
-                elif len(ch) == 1: choice[k] = ch[0]                                             # only the null action is left
-                elif rng_of("w", k, r, depth).random() < W_U:                                    # global: UCT (Eq. 1), ties broken at random
+                if sim[k]: choice[k] = ch[0]
+                elif new: choice[k] = rng_of("expand", k, r, depth).choice(new); sim[k] = True; STATS["expansions"] += 1
+                elif len(ch) == 1: choice[k] = ch[0]
+                elif rng_of("w", k, r, depth).random() < W_U:
                     u = lambda c: tree[k][c]["Q"] / tree[k][c]["N"] + ALPHA * math.sqrt(math.log(tree[k][node]["N"]) / tree[k][c]["N"])
                     best = max(map(u, ch)); choice[k] = rng_of("tie", k, r, depth).choice([c for c in ch if u(c) == best]); STATS["uct"] += 1
-                else: sa_jobs.append((k, node)); STATS["self_assessment"] += 1                   # local: LLM self-assessment (Table 10)
+                else: sa_jobs.append((k, node)); STATS["self_assessment"] += 1
             sa = gen([chat(SA_SYS, SA_USR.format(problem=byid[k]["spec"], language=byid[k]["lang"], code=byid[k]["code"], agent=FOCUS[tree[k][node]["sub"]][0],
                       history=", ".join(FOCUS[a][0] for a in node if a >= 0) or "None"), SA_PRE) for k, node in sa_jobs],
                      [seed_of("sa", k, node, r) for k, node in sa_jobs], "self_assessment", [k for k, node in sa_jobs])
-            for (k, node), o in zip(sa_jobs, sa):   # I13: Table 10 says respond 'Yes' unless the evaluator very negatively affects the assessment -> only an explicit No skips
+            for (k, node), o in zip(sa_jobs, sa):
                 m = re.search(r"\b(yes|no)\b", o[0], re.I); STATS["self_assessment_no"] += bool(m) and m.group(1).lower() == "no"
                 if not m: STATS["self_assessment_unparsed"] += 1; _keep("self_assessment", o[0])
                 choice[k] = children(k, node)[1 if (m and m.group(1).lower() == "no") else 0]
             for k in ids:
                 path[k] = choice[k]
                 if path[k] not in tree[k]: add(k, path[k])
-            # execute each newly reached subtask node once (Table 11 analysis, then the summarization verdict)
             ex = [(k, path[k]) for k in ids if path[k][-1] >= 0 and path[k] not in val[k]]
             ana = gen([chat(SUB_SYS.format(language=byid[k]["lang"], task=FOCUS[n[-1]][2], step=FOCUS[n[-1]][3]),
                             SUB_USR.format(problem=F[k][0], example=F[k][1], language=byid[k]["lang"], code=byid[k]["code"]), SUB_PRE.format(label=FOCUS[n[-1]][1]))
                        for k, n in ex], [seed_of("sub", k, n) for k, n in ex], "subtask_analysis", [k for k, n in ex])
             dec = gen([chat(SUM_SYS, SUM_USR.format(analysis=a[0]), SUM_PRE) for a in ana], [seed_of("sum", k, n) for k, n in ex], "subtask_summary", [k for k, n in ex])
             for (k, n), a, d in zip(ex, ana, dec): val[k][n] = (a[0], yes_no(d[0], "summary"))
-        # max depth reached: simulated-execution reward h(x) (I7), trajectory prediction f(t, g) (I6), terminal reward, backpropagation
         need = [(k, "once") for k in ids if k not in H]
         if need:
             h_new, p_new = simulate(need); hpick.update({key[0]: p_new[key] for key in need}); H.update({key[0]: h_new[key] for key in need})
@@ -293,7 +283,6 @@ for bench in BENCHES:
             trajs[k].append(dict(path=list(node), f=f, h=H[k], reward=rew))
         print(f"  rollout {r + 1}/{ROLLOUTS} done", flush=True)
 
-    # ---- final answer: R(t) = sum of r(s) = Q(s)/N(s) over t's nodes (I8); weighted sampling picks t_b; prediction f(t_b, g) ----
     R, Tr = {}, {}
     for k in ids:
         Rt = [sum(tree[k][tuple(t["path"][:i + 1])]["Q"] / tree[k][tuple(t["path"][:i + 1])]["N"] for i in range(len(t["path"]))) for t in trajs[k]]
@@ -305,7 +294,6 @@ for bench in BENCHES:
         STATS["subtask_nodes_executed"] += len(val[k])
     STATS["h_none"] = sum(1 for k in ids if H[k] is None); STATS["h_correct"] = sum(1 for k in ids if H[k] is True)
     raw_v = json.dumps(R, sort_keys=True).encode(); n = len(items)
-    # ---- token budget: per program (task-level test construction split over the task's programs), per stage, per paper-comparable group ----
     ntask = Counter(tid(byid[k]) for k in ids)
     ptok = {k: PROG[k] + PROG[("task", tid(byid[k]))] / ntask[tid(byid[k])] for k in ids}
     ppro = {k: PROG_P[k] + PROG_P[("task", tid(byid[k]))] / ntask[tid(byid[k])] for k in ids}

@@ -431,13 +431,12 @@ bash code/score.sh</code></pre>
 <div class="tip" id="tip"></div>
 
 <script>
-// ---------- data: results/paper_tables.txt ----------
-const A = [ // model, bench, judge, tau, mcc, tokens
+const A = [
  ["Qwen-7B","HumanEvalPack","vanilla",0.489,0.523,1],["Qwen-7B","HumanEvalPack","self-consistency x50",0.461,0.530,9892],["Qwen-7B","HumanEvalPack","multi-agent x4",0.434,0.413,7532],["Qwen-7B","HumanEvalPack","TopDown",0.547,0.622,7496],
  ["Qwen-7B","MBPP+","vanilla",0.417,0.422,1],["Qwen-7B","MBPP+","self-consistency x50",0.425,0.469,7155],["Qwen-7B","MBPP+","multi-agent x5",0.406,0.410,7740],["Qwen-7B","MBPP+","TopDown",0.459,0.529,6465],
  ["Llama-8B","HumanEvalPack","vanilla",0.318,0.272,1],["Llama-8B","HumanEvalPack","self-consistency x30",0.260,0.279,9709],["Llama-8B","HumanEvalPack","multi-agent x4",0.150,0.186,8697],["Llama-8B","HumanEvalPack","TopDown",0.376,0.280,8546],
  ["Llama-8B","MBPP+","vanilla",0.230,0.225,1],["Llama-8B","MBPP+","self-consistency x50",0.202,0.195,12564],["Llama-8B","MBPP+","multi-agent x5",0.162,0.162,9020],["Llama-8B","MBPP+","TopDown",0.282,0.268,7786]];
-const B = [ // model, bench, metric, vs, diff, gain%, lo, hi, holm p, sig
+const B = [
  ["Qwen-7B","HumanEvalPack","tau","vanilla",0.058,11.9,0.042,0.076,0.0060,1],["Qwen-7B","HumanEvalPack","tau","self-consistency x50",0.087,18.8,0.065,0.109,0.0060,1],["Qwen-7B","HumanEvalPack","tau","multi-agent x4",0.113,26.0,0.087,0.139,0.0060,1],
  ["Qwen-7B","HumanEvalPack","MCC","vanilla",0.099,19.0,0.066,0.133,0.0060,1],["Qwen-7B","HumanEvalPack","MCC","self-consistency x50",0.092,17.4,0.057,0.128,0.0060,1],["Qwen-7B","HumanEvalPack","MCC","multi-agent x4",0.210,50.8,0.162,0.255,0.0060,1],
  ["Qwen-7B","MBPP+","tau","vanilla",0.041,9.9,0.012,0.074,0.0260,1],["Qwen-7B","MBPP+","tau","self-consistency x50",0.034,8.0,0.001,0.069,0.0610,0],["Qwen-7B","MBPP+","tau","multi-agent x5",0.052,12.9,0.013,0.094,0.0260,1],
@@ -446,14 +445,13 @@ const B = [ // model, bench, metric, vs, diff, gain%, lo, hi, holm p, sig
  ["Llama-8B","HumanEvalPack","MCC","vanilla",0.009,3.2,-0.017,0.034,1.0,0],["Llama-8B","HumanEvalPack","MCC","self-consistency x30",0.001,0.4,-0.049,0.048,1.0,0],["Llama-8B","HumanEvalPack","MCC","multi-agent x4",0.094,50.6,0.053,0.136,0.0060,1],
  ["Llama-8B","MBPP+","tau","vanilla",0.052,22.6,0.028,0.078,0.0060,1],["Llama-8B","MBPP+","tau","self-consistency x50",0.080,39.9,0.048,0.113,0.0060,1],["Llama-8B","MBPP+","tau","multi-agent x5",0.120,74.1,0.071,0.173,0.0060,1],
  ["Llama-8B","MBPP+","MCC","vanilla",0.043,19.2,-0.018,0.106,0.5235,0],["Llama-8B","MBPP+","MCC","self-consistency x50",0.073,37.4,-0.016,0.164,0.4220,0],["Llama-8B","MBPP+","MCC","multi-agent x5",0.106,65.9,0.025,0.186,0.0375,1]];
-const G = [ // RQ2 pairwise accuracy: model, bench, TopDown, MCTS-Judge, CI of the difference lo, hi, gain %, significant
+const G = [
  ["Qwen-7B","HumanEvalPack",0.957,0.763,0.168,0.220,25.5,1],["Qwen-7B","MBPP+",0.842,0.694,0.100,0.196,21.4,1],
  ["Llama-8B","HumanEvalPack",0.890,0.621,0.240,0.298,43.3,1],["Llama-8B","MBPP+",0.691,0.603,0.026,0.148,14.7,1]];
-const H = [ // RQ2 MCC: model, bench, TopDown, MCTS-Judge, 95% CI of TopDown's MCC lo, hi, gain %, significant
+const H = [
  ["Qwen-7B","HumanEvalPack",0.622,0.541,0.574,0.672,14.9,1],["Qwen-7B","MBPP+",0.529,0.456,0.458,0.590,16.0,1],
  ["Llama-8B","HumanEvalPack",0.280,0.277,0.237,0.325,1.4,0],["Llama-8B","MBPP+",0.268,0.207,0.186,0.349,29.7,0]];
 
-// ---------- helpers ----------
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const tip = document.getElementById('tip');
 function hover(el, html) {
@@ -464,8 +462,6 @@ function svgEl(tag, attrs, text) { const n = document.createElementNS('http://ww
 const fmt3 = x => (x >= 0 ? '+' : '') + x.toFixed(3);
 const score = (m, b, j, metric) => A.find(r => r[0] === m && r[1] === b && r[2] === j)[metric === 'tau' ? 3 : 4];
 
-// ---------- dot chart (Figures 2 and 3) ----------
-// rows: {group, label, base, td, lo, hi, text, sig, kind}  kind: 'baseline' | 'variant' | 'vanilla'
 function dotChart(title, rows, xmin, xmax, opts) {
   const W = 500, left = 150, right = 70, rowH = 26, top = 30, gap = 14;
   const groups = [...new Set(rows.map(r => r.group))];
@@ -473,7 +469,6 @@ function dotChart(title, rows, xmin, xmax, opts) {
   const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': title });
   const x = v => left + (v - xmin) / (xmax - xmin) * (W - left - right);
   svg.appendChild(svgEl('text', { x: left, y: 16, 'font-size': 13, 'font-weight': 600, fill: 'currentColor' }, title));
-  // grid
   for (let v = xmin; v <= xmax + 1e-9; v += 0.1) {
     svg.appendChild(svgEl('line', { x1: x(v), x2: x(v), y1: top - 4, y2: H - 30, stroke: css('--line'), 'stroke-width': 1 }));
     svg.appendChild(svgEl('text', { x: x(v), y: H - 14, 'font-size': 10, 'text-anchor': 'middle', fill: css('--text-3') }, v.toFixed(1)));
@@ -486,7 +481,7 @@ function dotChart(title, rows, xmin, xmax, opts) {
     const row = svgEl('g', { class: 'row' });
     row.appendChild(svgEl('rect', { x: 0, y: y, width: W, height: rowH, fill: 'transparent' }));
     row.appendChild(svgEl('text', { x: left - 8, y: cy + 4, 'font-size': 11, 'text-anchor': 'end', fill: 'currentColor' }, r.label));
-    if (r.lo != null) { // whisker around the point the CI is drawn around
+    if (r.lo != null) {
       const c = opts.around === 'td' ? r.td : r.base; const a = x(r.wlo != null ? r.wlo : c + r.lo - r.diff), b = x(r.whi != null ? r.whi : c + r.hi - r.diff);
       row.appendChild(svgEl('line', { x1: a, x2: b, y1: cy, y2: cy, stroke: 'currentColor', 'stroke-width': 1.5 }));
       row.appendChild(svgEl('line', { x1: a, x2: a, y1: cy - 4, y2: cy + 4, stroke: 'currentColor', 'stroke-width': 1.5 }));
@@ -505,7 +500,6 @@ function dotChart(title, rows, xmin, xmax, opts) {
   return svg;
 }
 
-// Figure 2
 (function () {
   const host = document.getElementById('rq1figs');
   for (const m of ['Qwen-7B', 'Llama-8B']) for (const metric of ['tau', 'MCC']) {
@@ -524,13 +518,11 @@ function dotChart(title, rows, xmin, xmax, opts) {
     d.appendChild(dotChart(`${m}  ·  ${metric === 'tau' ? "Kendall's τ" : 'MCC (threshold 0)'}`, rows, xmin, xmax, { around: 'td', dotColor: () => css('--accent') }));
     host.appendChild(d);
   }
-  // table
   const t = document.getElementById('rq1table');
   t.innerHTML = '<tr><th>Model</th><th>Benchmark</th><th>Metric</th><th>vs</th><th class="num">baseline</th><th class="num">TopDown</th><th class="num">diff</th><th class="num">gain</th><th class="num">95% CI</th><th class="num">Holm p</th></tr>' +
     B.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2] === 'tau' ? 'τ' : 'MCC'}</td><td>${r[3]}</td><td class="num">${score(r[0], r[1], r[3], r[2]).toFixed(3)}</td><td class="num">${score(r[0], r[1], 'TopDown', r[2]).toFixed(3)}</td><td class="num">${fmt3(r[4])}</td><td class="num">+${r[5].toFixed(1)}%</td><td class="num">[${fmt3(r[6])}, ${fmt3(r[7])}]</td><td class="num">${r[8].toFixed(4)}${r[9] ? ' *' : ' ns'}</td></tr>`).join('');
 })();
 
-// Figure 3: TopDown against MCTS-Judge
 (function () {
   const host = document.getElementById('rq2figs');
   for (const m of ['Qwen-7B', 'Llama-8B']) for (const metric of ['pairwise', 'MCC']) {
@@ -553,14 +545,12 @@ function dotChart(title, rows, xmin, xmax, opts) {
     H.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>MCC</td><td class="num">${r[3].toFixed(3)}</td><td class="num">${r[2].toFixed(3)}</td><td class="num">${fmt3(r[2] - r[3])}</td><td class="num">+${r[6].toFixed(1)}%</td><td class="num">[${r[4].toFixed(3)}, ${r[5].toFixed(3)}] (TopDown)</td><td class="num">${r[7] ? 'yes' : 'no'}</td></tr>`).join('');
 })();
 
-// Table 1: tokens
 (function () {
   const t = document.getElementById('tokens');
   t.innerHTML = '<tr><th>Model</th><th>Benchmark</th><th>Judge</th><th class="num">τ</th><th class="num">MCC</th><th class="num">tokens / program</th></tr>' +
     A.map(r => `<tr class="${r[2] === 'TopDown' ? 'hl' : ''}"><td>${r[0]}</td><td>${r[1]}</td><td>${r[2].replace(' x', ' ×')}</td><td class="num">${r[3].toFixed(3)}</td><td class="num">${r[4].toFixed(3)}</td><td class="num">${r[5].toLocaleString()}</td></tr>`).join('');
 })();
 
-// ---------- Figure 1: the method ----------
 (function () {
   const host = document.getElementById('methodfig');
   const W = 1200, H = 640;
@@ -585,31 +575,25 @@ function dotChart(title, rows, xmin, xmax, opts) {
   function arrow(d, col, id, dashed) { svg.appendChild(svgEl('path', { d, fill: 'none', stroke: col, 'stroke-width': 1.8, 'marker-end': `url(#${id})`, 'stroke-dasharray': dashed ? '6 4' : 'none' })); }
   function label(x, y, text, col, anchor) { svg.appendChild(svgEl('text', { x, y, 'font-size': 10.5, fill: col || t2, 'text-anchor': anchor || 'middle', 'font-style': 'italic' }, text)); }
 
-  // level bands
   svg.appendChild(svgEl('rect', { x: 150, y: 10, width: 720, height: 245, rx: 10, fill: css('--spec-soft'), opacity: 0.35 }));
   svg.appendChild(svgEl('text', { x: 162, y: 30, 'font-size': 13, 'font-weight': 700, fill: spec }, 'SPECIFICATION LEVEL  ·  sees the specification, never the code'));
   svg.appendChild(svgEl('rect', { x: 150, y: 385, width: 720, height: 245, rx: 10, fill: css('--code-soft'), opacity: 0.35 }));
   svg.appendChild(svgEl('text', { x: 162, y: 405, 'font-size': 13, 'font-weight': 700, fill: code }, 'CODE LEVEL  ·  sees the code, never the expectation'));
 
-  // inputs
   box(10, 70, 125, 95, 'Specification', ['count the vowels', 'in the string s,', 'any letter case'], t2, css('--surface-2'));
   box(10, 445, 125, 95, 'Candidate code', ['def count_vowels(s):', '  return sum(c in', '  "aeiou" for c in s)'], t2, css('--surface-2'));
 
-  // spec level
   box(165, 50, 170, 130, '1  Probe agent', ['proposes up to six', 'inputs: examples first,', 'then edge cases', { t: 'count_vowels("AEIOU")', c: spec, b: true }, { t: 'shared by all candidates', c: t3 }], spec, css('--spec-soft'), { badge: 'once per task' });
   box(355, 50, 200, 130, '2  Predictor agent', ['4 samples: what must a', 'correct program return?', { t: 'expectation = majority', c: spec, b: true }, { t: 'precision p = share agreeing', c: spec, b: true }, { t: '"5" ×4  →  p = 1.0', c: t2 }], spec, css('--spec-soft'), { badge: '×4' });
   box(640, 50, 220, 130, '3  Re-deriver agent', ['told only: "a check disagreed', 'with this expectation"', '3 more samples, pooled with', 'the 4 → expectation and p', { t: 'recomputed over all 7', c: spec, b: true }, { t: 'only for a contradicted check', c: t3 }], spec, css('--spec-soft'), { badge: '×3', dashed: true });
 
-  // code level
   box(165, 440, 170, 130, '4  Code tracer', ['comments and docstrings', 'removed; traces the code', 'on each probe', { t: 'observation = its value', c: code, b: true }], code, css('--code-soft'), { badge: 'per check' });
   box(355, 440, 200, 130, '5  Spec-aware tracer', ['sees spec + code; traces', 'the same probe', { t: 'both agree → r = 0.9', c: code, b: true }, { t: 'else           r = 0.6', c: code, b: true }, { t: 'fallback if 4 is unreadable', c: t3 }], code, css('--code-soft'), { badge: 'per check' });
   box(640, 440, 220, 130, '6  Re-tracer agent', ['sees only the code; traces', 'that one call again, every', 'variable, loop and step', { t: 'observation = majority of', c: code, b: true }, { t: '3 readings; r = 0.9 if ≥ 2 agree', c: code, b: true }, { t: 'only for a contradicted check', c: t3 }], code, css('--code-soft'), { badge: '×1', dashed: true });
 
-  // middle: compare
   box(375, 270, 220, 95, 'Compare, per check', [{ t: 'observation ≠ expectation', c: 'currentColor', b: true }, '= prediction error', '→ feedback round (up and down),', 'then compare again'], acc, css('--accent-soft'));
   box(640, 270, 220, 95, 'After feedback', [{ t: 'still different', c: 'currentColor', b: true }, '= confirmed error', 'resolved errors count', 'as agreeing checks'], acc, css('--accent-soft'));
 
-  // judge + integration (right column)
   box(895, 40, 295, 100, 'Judge agent  (the prior)', ['sees the specification and the code', '"Is the code correct? YES or NO"', { t: 'prior = log P(YES) − log P(NO)', c: judge, b: true }, { t: 'first answer token; left untouched', c: t3 }], judge, css('--judge-soft'), { badge: 'once' });
   box(895, 170, 295, 180, 'Evidence  (from p and r of each check)', [
     { t: 'pc = P(error | correct) = 1 − p·r', c: 'currentColor' },
@@ -628,22 +612,21 @@ function dotChart(title, rows, xmin, xmax, opts) {
   svg.appendChild(svgEl('text', { x: 895, y: 548, 'font-size': 11, fill: t3 }, 'The judge agent reads the specification and the code;'));
   svg.appendChild(svgEl('text', { x: 895, y: 564, 'font-size': 11, fill: t3 }, 'the six TopDown agents never see its verdict.'));
 
-  // arrows
-  arrow('M135,117 L165,117', t3, 'aG');                 // spec -> probe
-  arrow('M335,117 L355,117', spec, 'aS');               // probe -> predictor
-  arrow('M250,180 L250,440', spec, 'aS'); label(258, 318, 'test inputs', spec, 'start');   // probe -> code tracer
-  arrow('M135,492 L165,492', t3, 'aG');                 // code -> tracer
-  arrow('M335,520 L355,520', code, 'aC');               // tracer -> spec-aware
+  arrow('M135,117 L165,117', t3, 'aG');
+  arrow('M335,117 L355,117', spec, 'aS');
+  arrow('M250,180 L250,440', spec, 'aS'); label(258, 318, 'test inputs', spec, 'start');
+  arrow('M135,492 L165,492', t3, 'aG');
+  arrow('M335,520 L355,520', code, 'aC');
   arrow('M455,180 L475,270', spec, 'aS'); label(480, 232, 'expectation + p', spec, 'start');
   arrow('M455,440 L475,365', code, 'aC'); label(480, 388, 'observation + r', code, 'start');
-  arrow('M595,317 L640,317', acc, 'aA');                // compare -> after feedback
+  arrow('M595,317 L640,317', acc, 'aA');
   arrow('M575,270 C600,220 630,200 660,180', spec, 'aS', true); label(585, 205, 'feedback: up', spec, 'middle');
   arrow('M575,365 C600,415 630,430 660,440', code, 'aC', true); label(585, 445, 'feedback: down', code, 'middle');
-  arrow('M750,180 L750,270', spec, 'aS');               // re-deriver -> after feedback
-  arrow('M750,440 L750,365', code, 'aC');               // re-tracer -> after feedback
-  arrow('M860,317 L895,317', acc, 'aA');                // after feedback -> evidence
-  arrow('M1042,140 L1042,170', judge, 'aJ');            // judge -> evidence (prior joins)
-  arrow('M1042,350 L1042,380', acc, 'aA');              // evidence -> verdict
+  arrow('M750,180 L750,270', spec, 'aS');
+  arrow('M750,440 L750,365', code, 'aC');
+  arrow('M860,317 L895,317', acc, 'aA');
+  arrow('M1042,140 L1042,170', judge, 'aJ');
+  arrow('M1042,350 L1042,380', acc, 'aA');
   host.appendChild(svg);
 })();
 </script>
